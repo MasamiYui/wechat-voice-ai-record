@@ -1,6 +1,6 @@
 import Foundation
 
-enum MeetingTaskStatus: String, Codable, CaseIterable {
+enum MeetingTaskStatus: String, Codable, CaseIterable, Hashable {
     case recorded      // 录音完成
     case transcoding   // 转码中
     case transcoded    // 转码完成
@@ -12,7 +12,7 @@ enum MeetingTaskStatus: String, Codable, CaseIterable {
     case failed        // 失败
 }
 
-struct MeetingTask: Identifiable, Codable {
+struct MeetingTask: Identifiable, Codable, Hashable, Equatable {
     var id: UUID = UUID()
     var createdAt: Date = Date()
     var recordingId: String
@@ -40,5 +40,13 @@ struct MeetingTask: Identifiable, Codable {
         self.recordingId = recordingId
         self.localFilePath = localFilePath
         self.title = title
+    }
+    
+    static func == (lhs: MeetingTask, rhs: MeetingTask) -> Bool {
+        return lhs.id == rhs.id
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }

@@ -4,7 +4,10 @@ import ScreenCaptureKit
 struct ContentView: View {
     @ObservedObject var settings: SettingsStore
     @StateObject private var recorder: AudioRecorder
+    @StateObject private var historyStore = HistoryStore()
     
+    @State private var selectedTask: MeetingTask?
+    @State private var isRecordingMode = true
     @State private var isShowingSettings = false
     
     init(settings: SettingsStore) {
@@ -13,14 +16,21 @@ struct ContentView: View {
     }
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Header
-            HStack {
-                Text("WeChat Voice Recorder")
-                    .font(.title)
-                
-                Spacer()
-                
+        NavigationSplitView {
+            HistoryView(store: historyStore, selectedTask: $selectedTask, isRecordingMode: $isRecordingMode)
+        } detail: {
+            if isRecordingMode {
+                RecordingView(recorder: recorder, settings: settings)
+            } else if let task = selectedTask {
+                ResultView(task: task)
+                    .id(task.id) // Force refresh when switching tasks
+            } else {
+                Text("Select a meeting or start a new recording")
+                    .foregroundColor(.secondary)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
                 Button(action: {
                     isShowingSettings = true
                 }) {
@@ -28,93 +38,24 @@ struct ContentView: View {
                 }
                 .disabled(recorder.isRecording)
             }
-            .padding(.top)
-            .padding(.horizontal)
-            
-            // Status Area
-            HStack {
-                Circle()
-                    .fill(recorder.isRecording ? Color.red : Color.gray)
-                    .frame(width: 12, height: 12)
-                Text(recorder.statusMessage)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
-            
-            // App Selection
-            Picker("Select App to Record:", selection: $recorder.selectedApp) {
-                Text("Select an App").tag(nil as SCRunningApplication?)
-                ForEach(recorder.availableApps, id: \.processID) { app in
-                    Text(app.applicationName).tag(app as SCRunningApplication?)
-                }
-            }
-            .disabled(recorder.isRecording)
-            .padding(.horizontal)
-            
-            HStack {
-                Button("Refresh Apps") {
-                    Task { await recorder.refreshAvailableApps() }
-                }
-                .disabled(recorder.isRecording)
-                
-                Spacer()
-            }
-            .padding(.horizontal)
-            
-            Divider()
-            
-            // Controls
-            HStack(spacing: 20) {
-                Button(action: {
-                    recorder.startRecording()
-                }) {
-                    HStack {
-                        Image(systemName: "record.circle")
-                        Text("Start Recording")
-                    }
-                    .padding()
-                }
-                .disabled(recorder.isRecording || recorder.selectedApp == nil)
-                .keyboardShortcut("R", modifiers: .command)
-                
-                Button(action: {
-                    recorder.stopRecording()
-                }) {
-                    HStack {
-                        Image(systemName: "stop.circle")
-                        Text("Stop")
-                    }
-                    .padding()
-                }
-                .disabled(!recorder.isRecording)
-                .keyboardShortcut(".", modifiers: .command)
-            }
-            
-            // Pipeline View
-            if let task = recorder.latestTask {
-                Divider()
-                Text("Latest Task")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-                
-                PipelineView(task: task, settings: settings)
-                    .id(task.id) // Ensure view recreation on new task
-            }
-            
-            Spacer()
-            
-            Text("Note: Requires Screen Recording Permission in System Settings")
-                .font(.caption)
-                .foregroundColor(.gray)
-                .padding(.bottom)
         }
-        .frame(minWidth: 600, minHeight: 600) // Increased size for pipeline
-        .padding()
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(settings: settings)
         }
+        .onChange(of: selectedTask) { newTask in
+            if newTask != nil {
+                isRecordingMode = false
+            }
+        }
+        .onChange(of: isRecordingMode) { newValue in
+            if newValue {
+                selectedTask = nil
+            }
+        }
+        .onChange(of: recorder.latestTask?.id) { _ in
+            // Refresh history when a new task is created
+            historyStore.refresh()
+        }
+        .frame(minWidth: 900, minHeight: 600)
     }
 }
