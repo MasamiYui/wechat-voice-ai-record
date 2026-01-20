@@ -162,13 +162,25 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
             }
             
             remoteAssetWriter = try AVAssetWriter(outputURL: url, fileType: .m4a)
+            
+            let sampleRate = streamDesc.pointee.mSampleRate
+            let channels = Int(streamDesc.pointee.mChannelsPerFrame)
+            
+            self.settings.log("Setup remote writer: rate=\(sampleRate), channels=\(channels)")
+            
+            if sampleRate <= 0 || channels <= 0 {
+                self.settings.log("Invalid audio format: rate or channels is 0")
+                return
+            }
+
             let settings: [String: Any] = [
-                AVFormatIDKey: kAudioFormatMPEG4AAC,
-                AVSampleRateKey: streamDesc.pointee.mSampleRate,
-                AVNumberOfChannelsKey: streamDesc.pointee.mChannelsPerFrame,
+                AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                AVSampleRateKey: sampleRate,
+                AVNumberOfChannelsKey: channels,
                 AVEncoderBitRateKey: 128000
             ]
-            remoteAssetWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: settings)
+            
+            remoteAssetWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: settings, sourceFormatHint: formatDesc)
             remoteAssetWriterInput?.expectsMediaDataInRealTime = true
             
             if let writer = remoteAssetWriter, let input = remoteAssetWriterInput, writer.canAdd(input) {
@@ -219,13 +231,25 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
             }
             
             micAssetWriter = try AVAssetWriter(outputURL: url, fileType: .m4a)
+            
+            let sampleRate = streamDesc.pointee.mSampleRate
+            let channels = Int(streamDesc.pointee.mChannelsPerFrame)
+            
+            self.settings.log("Setup mic writer: rate=\(sampleRate), channels=\(channels)")
+            
+            if sampleRate <= 0 || channels <= 0 {
+                self.settings.log("Invalid mic audio format: rate or channels is 0")
+                return
+            }
+
             let settings: [String: Any] = [
-                AVFormatIDKey: kAudioFormatMPEG4AAC,
-                AVSampleRateKey: streamDesc.pointee.mSampleRate,
-                AVNumberOfChannelsKey: streamDesc.pointee.mChannelsPerFrame,
+                AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                AVSampleRateKey: sampleRate,
+                AVNumberOfChannelsKey: channels,
                 AVEncoderBitRateKey: 128000
             ]
-            micAssetWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: settings)
+            
+            micAssetWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: settings, sourceFormatHint: formatDesc)
             micAssetWriterInput?.expectsMediaDataInRealTime = true
             
             if let writer = micAssetWriter, let input = micAssetWriterInput, writer.canAdd(input) {
