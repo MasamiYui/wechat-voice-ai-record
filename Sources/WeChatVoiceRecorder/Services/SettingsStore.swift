@@ -48,7 +48,7 @@ class SettingsStore: ObservableObject {
     private let logQueue = DispatchQueue(label: "com.wechatvoicerecorder.log")
     
     init() {
-        self.ossRegion = UserDefaults.standard.string(forKey: "ossRegion") ?? "oss-cn-beijing"
+        self.ossRegion = UserDefaults.standard.string(forKey: "ossRegion") ?? "cn-beijing"
         self.ossBucket = UserDefaults.standard.string(forKey: "ossBucket") ?? "wechat-record"
         self.ossPrefix = UserDefaults.standard.string(forKey: "ossPrefix") ?? "wvr/"
         self.ossEndpoint = UserDefaults.standard.string(forKey: "ossEndpoint") ?? "https://oss-cn-beijing.aliyuncs.com"
@@ -95,10 +95,12 @@ class SettingsStore: ObservableObject {
     }
     
     func log(_ message: String) {
-        guard enableVerboseLogging else { return }
         let timestamp = ISO8601DateFormatter().string(from: Date())
         let line = "[\(timestamp)] \(message)"
-        print("[WVR] \(line)")
+        print(line) // 同时输出到控制台方便调试
+        
+        guard enableVerboseLogging || message.contains("error") || message.contains("failed") || message.contains("test") else { return }
+        
         logQueue.async {
             let url = self.logFileURL()
             let dir = url.deletingLastPathComponent()
