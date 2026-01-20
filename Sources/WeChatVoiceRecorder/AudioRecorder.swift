@@ -9,6 +9,17 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
     @Published var statusMessage = "Ready to record"
     @Published var availableApps: [SCRunningApplication] = []
     @Published var selectedApp: SCRunningApplication?
+    @Published var latestTask: MeetingTask?
+    
+    var lastUploadedURL: URL? {
+        if let urlStr = latestTask?.ossUrl {
+            return URL(string: urlStr)
+        }
+        return nil
+    }
+    
+    private var settings: SettingsStore
+    private var recordingId: String?
     
     // System Audio (Remote)
     private var stream: SCStream?
@@ -26,7 +37,8 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
     private var isFirstMicBuffer = true
     private var localURL: URL?
     
-    override init() {
+    init(settings: SettingsStore) {
+        self.settings = settings
         super.init()
         Task {
             await refreshAvailableApps()
@@ -84,6 +96,10 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         let dateStr = formatter.string(from: Date())
+        
+        // Create Recording ID (Timestamp + Random)
+        let uuid = UUID().uuidString.prefix(8)
+        self.recordingId = "\(dateStr)-\(uuid)"
         
         let fileManager = FileManager.default
         let downloads = fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first!
@@ -230,7 +246,7 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
             }
             
             // 3. Merge
-            if let rURL = remoteURL, let lURL = localURL {
+            if let rURL = remoteURL, let lURL = localURL, let recId = recordingId {
                 await MainActor.run { self.statusMessage = "Merging audio files..." }
                 let mixedURL = rURL.deletingLastPathComponent().appendingPathComponent(rURL.lastPathComponent.replacingOccurrences(of: "remote", with: "mixed"))
                 do {
@@ -238,6 +254,12 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
                     await MainActor.run {
                         self.isRecording = false
                         self.statusMessage = "Saved 3 files to Downloads/WeChatRecordings"
+                        
+                        // Create Meeting Task
+                        let title = "Meeting \(recId)"
+                        let task = MeetingTask(recordingId: recId, localFilePath: mixedURL.path, title: title)
+                        DatabaseManager.shared.saveTask(task)
+                        self.latestTask = task
                     }
                 } catch {
                     await MainActor.run {

@@ -2,13 +2,34 @@ import SwiftUI
 import ScreenCaptureKit
 
 struct ContentView: View {
-    @StateObject private var recorder = AudioRecorder()
+    @ObservedObject var settings: SettingsStore
+    @StateObject private var recorder: AudioRecorder
+    
+    @State private var isShowingSettings = false
+    
+    init(settings: SettingsStore) {
+        self.settings = settings
+        _recorder = StateObject(wrappedValue: AudioRecorder(settings: settings))
+    }
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("WeChat Voice Recorder")
-                .font(.title)
-                .padding(.top)
+            // Header
+            HStack {
+                Text("WeChat Voice Recorder")
+                    .font(.title)
+                
+                Spacer()
+                
+                Button(action: {
+                    isShowingSettings = true
+                }) {
+                    Image(systemName: "gear")
+                }
+                .disabled(recorder.isRecording)
+            }
+            .padding(.top)
+            .padding(.horizontal)
             
             // Status Area
             HStack {
@@ -70,6 +91,19 @@ struct ContentView: View {
                 .keyboardShortcut(".", modifiers: .command)
             }
             
+            // Pipeline View
+            if let task = recorder.latestTask {
+                Divider()
+                Text("Latest Task")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                
+                PipelineView(task: task, settings: settings)
+                    .id(task.id) // Ensure view recreation on new task
+            }
+            
             Spacer()
             
             Text("Note: Requires Screen Recording Permission in System Settings")
@@ -77,7 +111,10 @@ struct ContentView: View {
                 .foregroundColor(.gray)
                 .padding(.bottom)
         }
-        .frame(minWidth: 400, minHeight: 300)
+        .frame(minWidth: 600, minHeight: 600) // Increased size for pipeline
         .padding()
+        .sheet(isPresented: $isShowingSettings) {
+            SettingsView(settings: settings)
+        }
     }
 }
