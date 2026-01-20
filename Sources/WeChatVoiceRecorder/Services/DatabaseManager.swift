@@ -30,11 +30,33 @@ class DatabaseManager {
     private func setupDatabase() {
         do {
             let fileManager = FileManager.default
-            let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            let appDir = appSupport.appendingPathComponent("WeChatVoiceRecorder")
-            try? fileManager.createDirectory(at: appDir, withIntermediateDirectories: true)
+            
+            // Fallback to Documents if ApplicationSupport fails or is not accessible
+            let baseDir: URL
+            if let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+                baseDir = appSupport
+            } else {
+                baseDir = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+            }
+            
+            let appDir = baseDir.appendingPathComponent("WeChatVoiceRecorder")
+            
+            do {
+                try fileManager.createDirectory(at: appDir, withIntermediateDirectories: true)
+            } catch {
+                print("Failed to create database directory: \(error)")
+                // Try using a temporary directory as last resort
+                let tempDir = fileManager.temporaryDirectory.appendingPathComponent("WeChatVoiceRecorder")
+                try? fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                let dbPath = tempDir.appendingPathComponent("db.sqlite3").path
+                print("Fallback to temp database: \(dbPath)")
+                db = try Connection(dbPath)
+                createTables()
+                return
+            }
             
             let dbPath = appDir.appendingPathComponent("db.sqlite3").path
+            print("Database path: \(dbPath)")
             db = try Connection(dbPath)
             
             createTables()
