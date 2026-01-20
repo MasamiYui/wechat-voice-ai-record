@@ -29,4 +29,70 @@ final class TingwuCreateTaskTests: XCTestCase {
         
         XCTAssertFalse(taskId.isEmpty)
     }
+    
+    func testCreateTaskRequestConstruction() throws {
+        // This test verifies that the request body is constructed correctly,
+        // specifically checking that Summarization and MeetingAssistance parameters are present.
+        
+        let settings = SettingsStore()
+        settings.tingwuAppKey = "TEST_APP_KEY"
+        settings.saveAccessKeyId("TEST_AK_ID")
+        settings.saveAccessKeySecret("TEST_AK_SECRET")
+        
+        // Enable features to test parameter generation
+        settings.enableSummary = true
+        settings.enableKeyPoints = true
+        settings.enableActionItems = true
+        settings.enableRoleSplit = true
+        
+        let service = TingwuService(settings: settings)
+        let fileUrl = "https://example.com/audio.m4a"
+        
+        // Call the internal helper method (made accessible via @testable)
+        let request = try service.buildCreateTaskRequest(fileUrl: fileUrl)
+        
+        // Verify URL
+        XCTAssertEqual(request.url?.absoluteString, "https://tingwu.cn-beijing.aliyuncs.com/openapi/tingwu/v2/tasks?type=offline")
+        XCTAssertEqual(request.httpMethod, "PUT")
+        
+        // Verify Body
+        guard let bodyData = request.httpBody,
+              let json = try JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
+              let parameters = json["Parameters"] as? [String: Any] else {
+            XCTFail("Failed to parse request body")
+            return
+        }
+        
+        // Check Summarization
+        XCTAssertEqual(parameters["SummarizationEnabled"] as? Bool, true)
+        if let summarization = parameters["Summarization"] as? [String: Any],
+           let types = summarization["Types"] as? [String] {
+            XCTAssertTrue(types.contains("Paragraph"))
+            XCTAssertTrue(types.contains("Conversational"))
+        } else {
+            XCTFail("Summarization.Types missing")
+        }
+        
+        // Check MeetingAssistance
+        XCTAssertEqual(parameters["MeetingAssistanceEnabled"] as? Bool, true)
+        if let assistance = parameters["MeetingAssistance"] as? [String: Any],
+           let types = assistance["Types"] as? [String] {
+            XCTAssertTrue(types.contains("KeyInformation"))
+            XCTAssertTrue(types.contains("Actions"))
+        } else {
+            XCTFail("MeetingAssistance.Types missing")
+        }
+        
+        // Check Diarization
+        if let transcription = parameters["Transcription"] as? [String: Any] {
+            XCTAssertEqual(transcription["DiarizationEnabled"] as? Bool, true)
+            if let diarization = transcription["Diarization"] as? [String: Any] {
+                 XCTAssertEqual(diarization["SpeakerCount"] as? Int, 0)
+            } else {
+                XCTFail("Transcription.Diarization missing")
+            }
+        } else {
+             XCTFail("Transcription missing")
+        }
+    }
 }

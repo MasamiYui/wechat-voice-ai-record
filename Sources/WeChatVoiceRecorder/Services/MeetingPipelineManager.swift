@@ -111,7 +111,7 @@ class MeetingPipelineManager: ObservableObject {
             let (status, data) = try await tingwuService.getTaskInfo(taskId: taskId)
             settings.log("Poll status: \(status)")
             
-            if status == "SUCCESS" {
+            if status == "SUCCESS" || status == "COMPLETED" {
                 if let result = data?["Result"] as? [String: Any] {
                     var updatedTask = task
                     updatedTask.status = .completed
@@ -120,12 +120,41 @@ class MeetingPipelineManager: ObservableObject {
                         updatedTask.rawResponse = String(data: jsonData, encoding: .utf8)
                     }
                     
-                    if let sentences = result["Sentences"] as? [[String: Any]] {
+                    // 1. Handle Transcription (Transcript)
+                    if let transcriptionUrl = result["Transcription"] as? String {
+                        if let transcriptionData = try? await tingwuService.fetchJSON(url: transcriptionUrl),
+                           let sentences = transcriptionData["Sentences"] as? [[String: Any]] {
+                            let text = sentences.compactMap { $0["Text"] as? String }.joined(separator: "\n")
+                            updatedTask.transcript = text
+                        }
+                    } else if let sentences = result["Sentences"] as? [[String: Any]] {
+                        // Fallback to inline Sentences if present
                         let text = sentences.compactMap { $0["Text"] as? String }.joined(separator: "\n")
                         updatedTask.transcript = text
                     }
                     
-                    if let summaryObj = result["Summarization"] as? [String: Any] {
+                    // 2. Handle Summarization
+                    if let summarizationUrl = result["Summarization"] as? String {
+                        if let summarizationData = try? await tingwuService.fetchJSON(url: summarizationUrl) {
+                            if let summary = summarizationData["Headline"] as? String {
+                                updatedTask.summary = summary
+                            }
+                            if let summaryText = summarizationData["Summary"] as? String {
+                                updatedTask.summary = (updatedTask.summary ?? "") + "\n\n" + summaryText
+                            }
+                            
+                            if let keyPointsList = summarizationData["KeyPoints"] as? [[String: Any]] {
+                                let kpText = keyPointsList.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
+                                updatedTask.keyPoints = "- " + kpText
+                            }
+                            
+                            if let actionItemsList = summarizationData["ActionItems"] as? [[String: Any]] {
+                                let aiText = actionItemsList.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
+                                updatedTask.actionItems = "- " + aiText
+                            }
+                        }
+                    } else if let summaryObj = result["Summarization"] as? [String: Any] {
+                        // Fallback to inline Summarization if present
                         if let summary = summaryObj["Headline"] as? String {
                             updatedTask.summary = summary
                         }
@@ -141,6 +170,21 @@ class MeetingPipelineManager: ObservableObject {
                         if let actionItemsList = summaryObj["ActionItems"] as? [[String: Any]] {
                             let aiText = actionItemsList.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
                             updatedTask.actionItems = "- " + aiText
+                        }
+                    }
+                    
+                    // 3. Handle MeetingAssistance (KeyPoints/Actions might also be here)
+                    if let assistanceUrl = result["MeetingAssistance"] as? String {
+                        if let assistanceData = try? await tingwuService.fetchJSON(url: assistanceUrl) {
+                            if let keyPointsList = assistanceData["KeyPoints"] as? [[String: Any]], updatedTask.keyPoints == nil {
+                                let kpText = keyPointsList.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
+                                updatedTask.keyPoints = "- " + kpText
+                            }
+                            
+                            if let actionItemsList = assistanceData["ActionItems"] as? [[String: Any]], updatedTask.actionItems == nil {
+                                let aiText = actionItemsList.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
+                                updatedTask.actionItems = "- " + aiText
+                            }
                         }
                     }
                     

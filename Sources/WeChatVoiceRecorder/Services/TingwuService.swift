@@ -11,38 +11,9 @@ class TingwuService {
     // MARK: - API Methods
     
     func createTask(fileUrl: String) async throws -> String {
-        guard let appKey = settings.tingwuAppKey.isEmpty ? nil : settings.tingwuAppKey else {
-            throw NSError(domain: "TingwuService", code: 400, userInfo: [NSLocalizedDescriptionKey: "Missing AppKey"])
-        }
+        var request = try buildCreateTaskRequest(fileUrl: fileUrl)
         
-        let parameters: [String: Any] = [
-            "AppKey": appKey,
-            "Input": [
-                "FileUrl": fileUrl,
-                "SourceLanguage": settings.language
-            ],
-            "Parameters": [
-                "AutoChaptersEnabled": true,
-                "SummarizationEnabled": settings.enableSummary,
-                "Transcoding": [
-                    "TargetAudioFormat": "m4a", // Optional, but good practice
-                    "SpectrumEnabled": false
-                ]
-                // Add more params like MeetingAssistanceEnabled if available
-            ]
-        ]
-        
-        let url = URL(string: "https://tingwu.cn-beijing.aliyuncs.com/openapi/tingwu/v2/tasks")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "PUT"
-        request.setValue("CreateTask", forHTTPHeaderField: "x-acs-action")
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
-        components.queryItems = [URLQueryItem(name: "type", value: "offline")]
-        request.url = components.url
-        
-        let bodyData = try JSONSerialization.data(withJSONObject: parameters, options: [.sortedKeys]) // Sorted keys for stable hash
-        request.httpBody = bodyData
-        
+        let bodyData = request.httpBody
         try await signRequest(&request, body: bodyData)
         
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -64,6 +35,76 @@ class TingwuService {
         }
         
         throw NSError(domain: "TingwuService", code: 0, userInfo: [NSLocalizedDescriptionKey: "TaskId not found in response"])
+    }
+
+    internal func buildCreateTaskRequest(fileUrl: String) throws -> URLRequest {
+        guard let appKey = settings.tingwuAppKey.isEmpty ? nil : settings.tingwuAppKey else {
+            throw NSError(domain: "TingwuService", code: 400, userInfo: [NSLocalizedDescriptionKey: "Missing AppKey"])
+        }
+        
+        var parameters: [String: Any] = [
+            "AppKey": appKey,
+            "Input": [
+                "FileUrl": fileUrl,
+                "SourceLanguage": settings.language
+            ]
+        ]
+        
+        var apiParams: [String: Any] = [
+            "AutoChaptersEnabled": true,
+            "Transcoding": [
+                "TargetAudioFormat": "m4a",
+                "SpectrumEnabled": false
+            ]
+        ]
+        
+        // Summarization
+        if settings.enableSummary {
+            apiParams["SummarizationEnabled"] = true
+            apiParams["Summarization"] = [
+                "Types": ["Paragraph", "Conversational", "QuestionsAnswering", "MindMap"]
+            ]
+        }
+        
+        // Meeting Assistance (KeyPoints, ActionItems)
+        if settings.enableKeyPoints || settings.enableActionItems {
+            apiParams["MeetingAssistanceEnabled"] = true
+            var assistanceTypes: [String] = []
+            if settings.enableKeyPoints {
+                assistanceTypes.append("KeyInformation")
+            }
+            if settings.enableActionItems {
+                assistanceTypes.append("Actions")
+            }
+            apiParams["MeetingAssistance"] = [
+                "Types": assistanceTypes
+            ]
+        }
+        
+        // Diarization (Role Split)
+        if settings.enableRoleSplit {
+            apiParams["Transcription"] = [
+                "DiarizationEnabled": true,
+                "Diarization": [
+                    "SpeakerCount": 0 // 0 means auto-detect
+                ]
+            ]
+        }
+        
+        parameters["Parameters"] = apiParams
+        
+        let url = URL(string: "https://tingwu.cn-beijing.aliyuncs.com/openapi/tingwu/v2/tasks")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("CreateTask", forHTTPHeaderField: "x-acs-action")
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "type", value: "offline")]
+        request.url = components.url
+        
+        let bodyData = try JSONSerialization.data(withJSONObject: parameters, options: [.sortedKeys]) // Sorted keys for stable hash
+        request.httpBody = bodyData
+        
+        return request
     }
     
     func getTaskInfo(taskId: String) async throws -> (status: String, result: [String: Any]?) {
@@ -95,6 +136,23 @@ class TingwuService {
         
         // Return full data object as result if completed
         return (status, dataObj)
+    }
+    
+    func fetchJSON(url: String) async throws -> [String: Any] {
+        guard let urlObj = URL(string: url) else {
+            throw NSError(domain: "TingwuService", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid URL: \(url)"])
+        }
+        
+        let (data, response) = try await URLSession.shared.data(from: urlObj)
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw NSError(domain: "TingwuService", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch JSON from \(url)"])
+        }
+        
+        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            return json
+        }
+        
+        throw NSError(domain: "TingwuService", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid JSON response from \(url)"])
     }
     
     // MARK: - V3 Signature Implementation
