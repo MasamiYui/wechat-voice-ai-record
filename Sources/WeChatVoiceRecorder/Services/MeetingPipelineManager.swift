@@ -122,10 +122,21 @@ class MeetingPipelineManager: ObservableObject {
                     
                     // 1. Handle Transcription (Transcript)
                     if let transcriptionUrl = result["Transcription"] as? String {
-                        if let transcriptionData = try? await tingwuService.fetchJSON(url: transcriptionUrl),
-                           let sentences = transcriptionData["Sentences"] as? [[String: Any]] {
-                            let text = sentences.compactMap { $0["Text"] as? String }.joined(separator: "\n")
-                            updatedTask.transcript = text
+                        if let transcriptionData = try? await tingwuService.fetchJSON(url: transcriptionUrl) {
+                            if let paragraphs = transcriptionData["Paragraphs"] as? [[String: Any]] {
+                                // Extract text from Paragraphs structure
+                                let text = paragraphs.compactMap { p -> String? in
+                                    if let words = p["Words"] as? [[String: Any]] {
+                                        return words.compactMap { $0["Text"] as? String }.joined()
+                                    }
+                                    return nil
+                                }.joined(separator: "\n")
+                                updatedTask.transcript = text
+                            } else if let sentences = transcriptionData["Sentences"] as? [[String: Any]] {
+                                // Fallback to Sentences structure
+                                let text = sentences.compactMap { $0["Text"] as? String }.joined(separator: "\n")
+                                updatedTask.transcript = text
+                            }
                         }
                     } else if let sentences = result["Sentences"] as? [[String: Any]] {
                         // Fallback to inline Sentences if present
@@ -136,21 +147,55 @@ class MeetingPipelineManager: ObservableObject {
                     // 2. Handle Summarization
                     if let summarizationUrl = result["Summarization"] as? String {
                         if let summarizationData = try? await tingwuService.fetchJSON(url: summarizationUrl) {
-                            if let summary = summarizationData["Headline"] as? String {
-                                updatedTask.summary = summary
-                            }
-                            if let summaryText = summarizationData["Summary"] as? String {
-                                updatedTask.summary = (updatedTask.summary ?? "") + "\n\n" + summaryText
-                            }
-                            
-                            if let keyPointsList = summarizationData["KeyPoints"] as? [[String: Any]] {
-                                let kpText = keyPointsList.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
-                                updatedTask.keyPoints = "- " + kpText
-                            }
-                            
-                            if let actionItemsList = summarizationData["ActionItems"] as? [[String: Any]] {
-                                let aiText = actionItemsList.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
-                                updatedTask.actionItems = "- " + aiText
+                            if let summarizationObj = summarizationData["Summarization"] as? [String: Any] {
+                                // Handle new structure inside "Summarization" key
+                                if let summary = summarizationObj["ParagraphTitle"] as? String {
+                                    updatedTask.summary = summary
+                                }
+                                if let summaryText = summarizationObj["ParagraphSummary"] as? String {
+                                    updatedTask.summary = (updatedTask.summary ?? "") + "\n\n" + summaryText
+                                }
+                                
+                                // Conversational Summary
+                                if let conversationalSummary = summarizationObj["ConversationalSummary"] as? [[String: Any]] {
+                                    let convText = conversationalSummary.compactMap { item -> String? in
+                                        guard let speaker = item["SpeakerName"] as? String,
+                                              let summary = item["Summary"] as? String else { return nil }
+                                        return "\(speaker): \(summary)"
+                                    }.joined(separator: "\n\n")
+                                    if !convText.isEmpty {
+                                        updatedTask.summary = (updatedTask.summary ?? "") + "\n\n### 对话总结\n" + convText
+                                    }
+                                }
+                                
+                                // Q&A Summary
+                                if let qaSummary = summarizationObj["QuestionsAnsweringSummary"] as? [[String: Any]] {
+                                    let qaText = qaSummary.compactMap { item -> String? in
+                                        guard let q = item["Question"] as? String,
+                                              let a = item["Answer"] as? String else { return nil }
+                                        return "Q: \(q)\nA: \(a)"
+                                    }.joined(separator: "\n\n")
+                                    if !qaText.isEmpty {
+                                        updatedTask.summary = (updatedTask.summary ?? "") + "\n\n### 问答总结\n" + qaText
+                                    }
+                                }
+                                
+                                // MindMap
+                                if let mindMapSummary = summarizationObj["MindMapSummary"] as? [[String: Any]] {
+                                    // Simple recursive extraction for mind map could be complex, for now just dump title
+                                    let mmText = mindMapSummary.compactMap { $0["Title"] as? String }.joined(separator: ", ")
+                                    if !mmText.isEmpty {
+                                        updatedTask.summary = (updatedTask.summary ?? "") + "\n\n### 思维导图主题\n" + mmText
+                                    }
+                                }
+                            } else {
+                                // Fallback to old flat structure if any
+                                if let summary = summarizationData["Headline"] as? String {
+                                    updatedTask.summary = summary
+                                }
+                                if let summaryText = summarizationData["Summary"] as? String {
+                                    updatedTask.summary = (updatedTask.summary ?? "") + "\n\n" + summaryText
+                                }
                             }
                         }
                     } else if let summaryObj = result["Summarization"] as? [String: Any] {
@@ -176,14 +221,35 @@ class MeetingPipelineManager: ObservableObject {
                     // 3. Handle MeetingAssistance (KeyPoints/Actions might also be here)
                     if let assistanceUrl = result["MeetingAssistance"] as? String {
                         if let assistanceData = try? await tingwuService.fetchJSON(url: assistanceUrl) {
-                            if let keyPointsList = assistanceData["KeyPoints"] as? [[String: Any]], updatedTask.keyPoints == nil {
-                                let kpText = keyPointsList.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
-                                updatedTask.keyPoints = "- " + kpText
-                            }
-                            
-                            if let actionItemsList = assistanceData["ActionItems"] as? [[String: Any]], updatedTask.actionItems == nil {
-                                let aiText = actionItemsList.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
-                                updatedTask.actionItems = "- " + aiText
+                            if let assistanceObj = assistanceData["MeetingAssistance"] as? [String: Any] {
+                                // Handle Keywords
+                                if let keywords = assistanceObj["Keywords"] as? [String] {
+                                    let kwText = keywords.joined(separator: ", ")
+                                    updatedTask.keyPoints = (updatedTask.keyPoints ?? "") + "### 关键词\n" + kwText + "\n\n"
+                                }
+                                
+                                // Handle KeySentences (as Key Points)
+                                if let keySentences = assistanceObj["KeySentences"] as? [[String: Any]] {
+                                    let ksText = keySentences.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
+                                    updatedTask.keyPoints = (updatedTask.keyPoints ?? "") + "### 重点语句\n- " + ksText
+                                }
+                                
+                                // Handle ActionItems (if present in new structure, though logs don't show it yet)
+                                if let actionItemsList = assistanceObj["ActionItems"] as? [[String: Any]] {
+                                    let aiText = actionItemsList.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
+                                    updatedTask.actionItems = "- " + aiText
+                                }
+                            } else {
+                                // Fallback to flat structure
+                                if let keyPointsList = assistanceData["KeyPoints"] as? [[String: Any]], updatedTask.keyPoints == nil {
+                                    let kpText = keyPointsList.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
+                                    updatedTask.keyPoints = "- " + kpText
+                                }
+                                
+                                if let actionItemsList = assistanceData["ActionItems"] as? [[String: Any]], updatedTask.actionItems == nil {
+                                    let aiText = actionItemsList.compactMap { $0["Text"] as? String }.joined(separator: "\n- ")
+                                    updatedTask.actionItems = "- " + aiText
+                                }
                             }
                         }
                     }

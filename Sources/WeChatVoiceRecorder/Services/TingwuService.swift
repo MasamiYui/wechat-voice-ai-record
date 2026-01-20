@@ -114,6 +114,10 @@ class TingwuService {
         request.httpMethod = "GET"
         request.setValue("GetTaskInfo", forHTTPHeaderField: "x-acs-action")
         
+        if settings.enableVerboseLogging {
+            settings.log("Tingwu GetTaskInfo URL: \(request.url?.absoluteString ?? "")")
+        }
+        
         try await signRequest(&request, body: nil)
         
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -125,6 +129,11 @@ class TingwuService {
         if httpResponse.statusCode != 200 {
              let errorMsg = String(data: data, encoding: .utf8) ?? "Unknown error"
             throw NSError(domain: "TingwuService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg])
+        }
+        
+        if settings.enableVerboseLogging {
+            let responseText = String(data: data, encoding: .utf8) ?? "Unable to decode response body"
+            settings.log("Tingwu GetTaskInfo response: \(responseText)")
         }
         
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -143,9 +152,18 @@ class TingwuService {
             throw NSError(domain: "TingwuService", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid URL: \(url)"])
         }
         
+        if settings.enableVerboseLogging {
+            settings.log("Tingwu fetchJSON URL: \(urlObj.absoluteString)")
+        }
+        
         let (data, response) = try await URLSession.shared.data(from: urlObj)
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             throw NSError(domain: "TingwuService", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch JSON from \(url)"])
+        }
+        
+        if settings.enableVerboseLogging {
+            let responseText = String(data: data, encoding: .utf8) ?? "Unable to decode response body"
+            settings.log("Tingwu fetchJSON response: \(responseText)")
         }
         
         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
