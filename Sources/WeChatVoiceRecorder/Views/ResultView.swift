@@ -3,14 +3,25 @@ import UniformTypeIdentifiers
 
 struct ResultView: View {
     let task: MeetingTask
+    let settings: SettingsStore
     @State private var selectedTab: ResultTab = .overview
     
     enum ResultTab: String, CaseIterable, Identifiable {
         case overview = "Overview"
         case transcript = "Transcript"
         case raw = "Raw Data"
+        case pipeline = "Pipeline"
         
         var id: String { self.rawValue }
+    }
+    
+    init(task: MeetingTask, settings: SettingsStore) {
+        self.task = task
+        self.settings = settings
+        // Default to Pipeline if task is not completed
+        if task.status != .completed {
+            _selectedTab = State(initialValue: .pipeline)
+        }
     }
     
     var body: some View {
@@ -60,6 +71,8 @@ struct ResultView: View {
                             .padding()
                             .textSelection(.enabled)
                     }
+                case .pipeline:
+                    PipelineView(task: task, settings: settings)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -38,8 +38,11 @@ struct MeetingTask: Identifiable, Codable, Hashable, Equatable {
     var actionItems: String?
     var outputMp3Path: String?
     
-    // Error
+    // Error & Retry
     var lastError: String?
+    var lastSuccessfulStatus: MeetingTaskStatus?
+    var failedStep: MeetingTaskStatus?
+    var retryCount: Int = 0
     
     init(recordingId: String, localFilePath: String, title: String) {
         self.recordingId = recordingId

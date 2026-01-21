@@ -30,6 +30,11 @@ class DatabaseManager {
     private let bizDuration = Expression<Int?>("biz_duration")
     private let outputMp3Path = Expression<String?>("output_mp3_path")
     
+    // New Fields for Retry
+    private let lastSuccessfulStatus = Expression<String?>("last_successful_status")
+    private let failedStep = Expression<String?>("failed_step")
+    private let retryCount = Expression<Int>("retry_count")
+    
     private init() {
         setupDatabase()
     }
@@ -96,6 +101,9 @@ class DatabaseManager {
                 t.column(statusText)
                 t.column(bizDuration)
                 t.column(outputMp3Path)
+                t.column(lastSuccessfulStatus)
+                t.column(failedStep)
+                t.column(retryCount, defaultValue: 0)
             })
             
             // Migration for existing tables
@@ -104,6 +112,9 @@ class DatabaseManager {
             _ = try? db.run(tasks.addColumn(statusText))
             _ = try? db.run(tasks.addColumn(bizDuration))
             _ = try? db.run(tasks.addColumn(outputMp3Path))
+            _ = try? db.run(tasks.addColumn(lastSuccessfulStatus))
+            _ = try? db.run(tasks.addColumn(failedStep))
+            _ = try? db.run(tasks.addColumn(retryCount, defaultValue: 0))
         } catch {
             print("Create table error: \(error)")
         }
@@ -134,7 +145,10 @@ class DatabaseManager {
                 apiStatus <- task.apiStatus,
                 statusText <- task.statusText,
                 bizDuration <- task.bizDuration,
-                outputMp3Path <- task.outputMp3Path
+                outputMp3Path <- task.outputMp3Path,
+                lastSuccessfulStatus <- task.lastSuccessfulStatus?.rawValue,
+                failedStep <- task.failedStep?.rawValue,
+                retryCount <- task.retryCount
             )
             try db.run(insert)
         } catch {
@@ -175,6 +189,14 @@ class DatabaseManager {
                 task.statusText = row[statusText]
                 task.bizDuration = row[bizDuration]
                 task.outputMp3Path = row[outputMp3Path]
+                
+                if let successStatusRaw = row[lastSuccessfulStatus], let successStatus = MeetingTaskStatus(rawValue: successStatusRaw) {
+                    task.lastSuccessfulStatus = successStatus
+                }
+                if let failedStatusRaw = row[failedStep], let failedStepEnum = MeetingTaskStatus(rawValue: failedStatusRaw) {
+                    task.failedStep = failedStepEnum
+                }
+                task.retryCount = row[retryCount]
                 
                 results.append(task)
             }

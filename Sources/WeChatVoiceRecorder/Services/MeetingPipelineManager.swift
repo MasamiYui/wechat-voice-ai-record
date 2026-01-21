@@ -22,8 +22,10 @@ class MeetingPipelineManager: ObservableObject {
     
     // MARK: - Actions
     
-    func transcode() async {
-        guard task.status == .recorded || task.status == .failed else { return }
+    func transcode(force: Bool = false) async {
+        if !force {
+            guard task.status == .recorded || task.status == .failed else { return }
+        }
         
         settings.log("Transcode start: input=\(task.localFilePath)")
         await updateStatus(.transcoding, error: nil)
@@ -36,7 +38,7 @@ class MeetingPipelineManager: ObservableObject {
         let asset = AVAsset(url: inputURL)
         guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else {
             settings.log("Transcode failed: cannot create export session")
-            await updateStatus(.failed, error: "Cannot create export session")
+            await updateStatus(.failed, step: .transcoding, error: "Cannot create export session")
             return
         }
         
@@ -53,7 +55,7 @@ class MeetingPipelineManager: ObservableObject {
             await updateStatus(.transcoded, error: nil) // Transcode complete
         } else {
             settings.log("Transcode failed: \(exportSession.error?.localizedDescription ?? "Unknown error")")
-            await updateStatus(.failed, error: exportSession.error?.localizedDescription ?? "Transcode failed")
+            await updateStatus(.failed, step: .transcoding, error: exportSession.error?.localizedDescription ?? "Transcode failed")
         }
     }
     
@@ -78,7 +80,7 @@ class MeetingPipelineManager: ObservableObject {
             settings.log("Upload success: url=\(url)")
         } catch {
             settings.log("Upload failed: \(error.localizedDescription)")
-            await updateStatus(.failed, error: error.localizedDescription)
+            await updateStatus(.failed, step: .uploading, error: error.localizedDescription)
         }
     }
     
@@ -98,7 +100,7 @@ class MeetingPipelineManager: ObservableObject {
             settings.log("Create task success: taskId=\(taskId)")
         } catch {
              settings.log("Create task failed: \(error.localizedDescription)")
-             await updateStatus(.failed, error: error.localizedDescription)
+             await updateStatus(.failed, step: .created, error: error.localizedDescription)
         }
     }
     
@@ -129,10 +131,16 @@ class MeetingPipelineManager: ObservableObject {
                     
                     var transcriptText: String?
                     if let transcriptionUrl = result["Transcription"] as? String {
-                        if let transcriptionData = try? await tingwuService.fetchJSON(url: transcriptionUrl) {
+                        settings.log("Downloading transcript from: \(transcriptionUrl)")
+                        do {
+                            let transcriptionData = try await tingwuService.fetchJSON(url: transcriptionUrl)
+                            settings.log("Transcript data keys: \(transcriptionData.keys.joined(separator: ", "))")
                             transcriptText = buildTranscriptText(from: transcriptionData)
+                        } catch {
+                            settings.log("Failed to download transcript: \(error.localizedDescription)")
                         }
                     } else if let transcriptionObj = result["Transcription"] as? [String: Any] {
+                        settings.log("Using inline transcription object")
                         transcriptText = buildTranscriptText(from: transcriptionObj)
                     }
                     
@@ -276,27 +284,101 @@ class MeetingPipelineManager: ObservableObject {
                  }
                  self.task = updatedTask
                  
-                 await updateStatus(.failed, error: "Task failed in cloud: \(self.task.statusText ?? "Unknown error")")
+                 await updateStatus(.failed, step: .polling, error: "Task failed in cloud: \(self.task.statusText ?? "Unknown error")")
             } else {
                  await MainActor.run { self.isProcessing = false }
             }
         } catch {
             settings.log("Poll failed: \(error.localizedDescription)")
-            await updateStatus(.failed, error: error.localizedDescription)
+            await updateStatus(.failed, step: .polling, error: error.localizedDescription)
         }
         
         await MainActor.run { self.isProcessing = false }
     }
     
+    func retry() async {
+        guard task.status == .failed else { return }
+        
+        self.task.retryCount += 1
+        let step = self.task.failedStep ?? .recorded // Default to start if unknown
+        
+        settings.log("Retry requested. Count: \(task.retryCount), Step: \(step.rawValue)")
+        
+        switch step {
+        case .transcoding:
+            await transcode()
+        case .uploading:
+            await upload()
+        case .created:
+            await createTask()
+        case .polling:
+            await pollStatus()
+        default:
+            // Fallback: try to determine from last successful status
+            if let last = task.lastSuccessfulStatus {
+                switch last {
+                case .recorded: await transcode()
+                case .transcoded: await upload()
+                case .uploaded: await createTask()
+                case .created: await pollStatus() // Should not happen if created is transient, but just in case
+                default: await transcode()
+                }
+            } else {
+                await transcode()
+            }
+        }
+    }
+    
+    func restartFromBeginning() async {
+        settings.log("Restart from beginning requested.")
+        
+        // Reset fields
+        var updatedTask = task
+        updatedTask.ossUrl = nil
+        updatedTask.tingwuTaskId = nil
+        updatedTask.taskKey = nil
+        updatedTask.apiStatus = nil
+        updatedTask.statusText = nil
+        updatedTask.bizDuration = nil
+        updatedTask.outputMp3Path = nil
+        updatedTask.rawResponse = nil
+        updatedTask.transcript = nil
+        updatedTask.summary = nil
+        updatedTask.keyPoints = nil
+        updatedTask.actionItems = nil
+        
+        updatedTask.status = .recorded
+        updatedTask.lastSuccessfulStatus = nil
+        updatedTask.failedStep = nil
+        updatedTask.lastError = nil
+        updatedTask.retryCount += 1
+        
+        self.task = updatedTask
+        self.save()
+        self.errorMessage = nil
+        
+        await transcode()
+    }
+    
     // MARK: - Helper
     
     @MainActor
-    private func updateStatus(_ status: MeetingTaskStatus, error: String?) {
+    private func updateStatus(_ status: MeetingTaskStatus, step: MeetingTaskStatus? = nil, error: String?) {
         self.task.status = status
         self.task.lastError = error
         self.errorMessage = error
         self.isProcessing = false
-        settings.log("Task status updated: \(status.rawValue) error=\(error ?? "")")
+        
+        if status == .failed {
+            if let step = step {
+                self.task.failedStep = step
+            }
+        } else if status != .created {
+            // .created is transient, don't mark it as last successful
+            self.task.lastSuccessfulStatus = status
+        }
+        
+        settings.log("Task status updated: \(status.rawValue) step=\(step?.rawValue ?? "nil") error=\(error ?? "")")
         self.save()
     }
     
@@ -305,6 +387,17 @@ class MeetingPipelineManager: ObservableObject {
     }
     
     func buildTranscriptText(from transcriptionData: [String: Any]) -> String? {
+        // Check for nested Result.Transcription
+        if let result = transcriptionData["Result"] as? [String: Any],
+           let transcription = result["Transcription"] as? [String: Any] {
+            return buildTranscriptText(from: transcription)
+        }
+        
+        // Check for nested Transcription
+        if let transcription = transcriptionData["Transcription"] as? [String: Any] {
+            return buildTranscriptText(from: transcription)
+        }
+
         if let paragraphs = transcriptionData["Paragraphs"] as? [[String: Any]] {
             let lines = paragraphs.compactMap { paragraph -> String? in
                 let speaker = extractSpeaker(from: paragraph)

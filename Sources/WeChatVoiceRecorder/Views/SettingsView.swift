@@ -147,8 +147,8 @@ struct SettingsView: View {
             testStatus = "Success! URL: \(url)"
             settings.log("OSS test upload success: url=\(url)")
         } catch {
-            testStatus = "Failed: \(error.localizedDescription)"
-            settings.log("OSS test upload failed: \(error.localizedDescription)")
+            testStatus = "Failed: \(String(describing: error))"
+            settings.log("OSS test upload failed: \(String(describing: error))")
         }
     }
 }

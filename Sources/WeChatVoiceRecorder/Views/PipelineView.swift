@@ -2,9 +2,15 @@ import SwiftUI
 
 struct PipelineView: View {
     @StateObject var manager: MeetingPipelineManager
+    private let settings: SettingsStore
     @State private var showingResult = false
     
+    // Rerun interaction
+    @State private var stepToRerun: MeetingTaskStatus?
+    @State private var showRerunAlert = false
+    
     init(task: MeetingTask, settings: SettingsStore) {
+        self.settings = settings
         _manager = StateObject(wrappedValue: MeetingPipelineManager(task: task, settings: settings))
     }
     
@@ -33,15 +39,19 @@ struct PipelineView: View {
             
             // Pipeline Steps
             HStack(spacing: 0) {
-                StepView(title: "Record", icon: "mic.fill", isActive: true, isCompleted: true)
+                // Record Step (Not interactive for rerun)
+                StepView(title: "Record", icon: "mic.fill", isActive: true, isCompleted: true, isFailed: false)
+                    .opacity(1.0)
+                
                 ArrowView()
-                StepView(title: "Transcode", icon: "waveform", isActive: manager.task.status == .transcoding, isCompleted: isAfter(.transcoding))
+                
+                stepButton(title: "Transcode", icon: "waveform", step: .transcoding)
                 ArrowView()
-                StepView(title: "Upload", icon: "icloud.and.arrow.up", isActive: manager.task.status == .uploading, isCompleted: isAfter(.uploading))
+                stepButton(title: "Upload", icon: "icloud.and.arrow.up", step: .uploading)
                 ArrowView()
-                StepView(title: "Create Task", icon: "doc.badge.plus", isActive: manager.task.status == .created, isCompleted: isAfter(.created))
+                stepButton(title: "Create Task", icon: "doc.badge.plus", step: .created)
                 ArrowView()
-                StepView(title: "Poll", icon: "arrow.triangle.2.circlepath", isActive: manager.task.status == .polling, isCompleted: manager.task.status == .completed)
+                stepButton(title: "Poll", icon: "arrow.triangle.2.circlepath", step: .polling)
             }
             .padding(.vertical)
             
@@ -75,7 +85,73 @@ struct PipelineView: View {
         .padding()
         .frame(minWidth: 500)
         .sheet(isPresented: $showingResult) {
-            ResultView(task: manager.task)
+            ResultView(task: manager.task, settings: settings)
+        }
+        .alert("Rerun Step?", isPresented: $showRerunAlert, presenting: stepToRerun) { step in
+            Button("Cancel", role: .cancel) { }
+            Button("Rerun") {
+                rerun(step)
+            }
+        } message: { step in
+            Text("Are you sure you want to rerun '\(stepTitle(step))'? This might overwrite existing data.")
+        }
+    }
+    
+    // MARK: - Helpers
+    
+    private func stepButton(title: String, icon: String, step: MeetingTaskStatus) -> some View {
+        let canRerun = manager.task.status == .completed || manager.task.status == .failed
+        
+        return Button(action: {
+            if canRerun {
+                stepToRerun = step
+                showRerunAlert = true
+            }
+        }) {
+            StepView(
+                title: title,
+                icon: icon,
+                isActive: manager.task.status == step,
+                isCompleted: isAfter(step),
+                isFailed: isFailed(step)
+            )
+            .contentShape(Rectangle()) // Make sure the whole area is clickable
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.accentColor, lineWidth: canRerun ? 0 : 0) // Placeholder for hover effect if needed
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!canRerun)
+        .onHover { inside in
+            if canRerun && inside {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+        .help(canRerun ? "Click to rerun this step" : "")
+    }
+    
+    private func stepTitle(_ step: MeetingTaskStatus) -> String {
+        switch step {
+        case .transcoding: return "Transcode"
+        case .uploading: return "Upload"
+        case .created: return "Create Task"
+        case .polling: return "Poll Status"
+        default: return step.rawValue
+        }
+    }
+
+    private func rerun(_ step: MeetingTaskStatus) {
+        Task {
+            switch step {
+            case .transcoding: await manager.transcode(force: true)
+            case .uploading: await manager.upload()
+            case .created: await manager.createTask()
+            case .polling: await manager.pollStatus()
+            default: break
+            }
         }
     }
     
@@ -93,20 +169,49 @@ struct PipelineView: View {
         guard let currentIndex = order.firstIndex(of: manager.task.status),
               let targetIndex = order.firstIndex(of: status) else { return false }
         
-        // Handle "uploaded" mapping to "created" step check
-        // If status is .uploaded, it means Transcode and Upload are done.
-        
         return currentIndex > targetIndex
+    }
+    
+    private func isFailed(_ step: MeetingTaskStatus) -> Bool {
+        guard manager.task.status == .failed else { return false }
+        return manager.task.failedStep == step
     }
     
     @ViewBuilder
     private var actionButton: some View {
         switch manager.task.status {
-        case .recorded, .failed:
+        case .recorded:
             Button("Transcode Audio") {
                 Task { await manager.transcode() }
             }
             .buttonStyle(.borderedProminent)
+            
+        case .failed:
+            VStack {
+                if let failedStep = manager.task.failedStep {
+                    Text("Failed at: \(failedStep.rawValue.capitalized)")
+                        .foregroundColor(.red)
+                        .font(.caption)
+                    
+                    Button("Retry \(failedStep.rawValue.capitalized)") {
+                        Task { await manager.retry() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else {
+                    Button("Retry Last Step") {
+                        Task { await manager.retry() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                
+                Button("Restart from Beginning") {
+                    Task { await manager.restartFromBeginning() }
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+                .font(.caption)
+                .padding(.top, 4)
+            }
             
         case .transcoding:
             Text("Transcoding...")
@@ -120,32 +225,13 @@ struct PipelineView: View {
         case .uploading:
             Text("Uploading...")
             
-        // After transcoding (which sets status back to .recorded with new path? No, I need a status)
-        // Wait, in manager I set status to .recorded after transcode.
-        // This is ambiguous. I should have set it to .transcoded or just auto-upload.
-        // But user wants manual steps.
-        // Let's assume .recorded means "Ready to Transcode".
-        // If I want "Ready to Upload", I need a status.
-        // I added .uploaded.
-        // Let's refine the flow logic in View:
-        
-        // If local file is "mixed_48k.m4a", implies transcoded.
-        // This is a bit hacky.
-        // Let's assume user clicks "Start" and it does Transcode -> Upload -> Create Task -> Poll automatically?
-        // User said: "手动执行， UI做成流水线一样，自己点进去下一个节点这样".
-        // This implies: Click "Transcode" -> Done. Click "Upload" -> Done. Click "Create" -> Done.
-        
-        // Let's try to infer next step or provide buttons for all available next steps.
-        
         case .uploaded:
              Button("Create Tingwu Task") {
                  Task { await manager.createTask() }
              }
              .buttonStyle(.borderedProminent)
              
-        case .created: // Actually I used .created as "Creating" state in manager.
-             // Wait, manager sets .created BEFORE async call, then .polling AFTER.
-             // So .created is a transient state "Creating...".
+        case .created:
              Text("Creating Task...")
              
         case .polling:
@@ -166,18 +252,19 @@ struct StepView: View {
     let icon: String
     let isActive: Bool
     let isCompleted: Bool
+    let isFailed: Bool
     
     var body: some View {
         VStack {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundColor(isCompleted ? .green : (isActive ? .blue : .gray))
+                .foregroundColor(isFailed ? .red : (isCompleted ? .green : (isActive ? .blue : .gray)))
                 .frame(width: 40, height: 40)
-                .background(Circle().fill(Color.gray.opacity(0.1)))
+                .background(Circle().fill(isFailed ? Color.red.opacity(0.1) : Color.gray.opacity(0.1)))
             
             Text(title)
                 .font(.caption)
-                .foregroundColor(isCompleted ? .primary : .secondary)
+                .foregroundColor(isFailed ? .red : (isCompleted ? .primary : .secondary))
         }
         .frame(width: 80)
     }

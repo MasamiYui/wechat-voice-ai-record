@@ -14,20 +14,26 @@ class OSSService {
             throw NSError(domain: "OSSService", code: 401, userInfo: [NSLocalizedDescriptionKey: "Missing AccessKey"])
         }
         
-        let endpoint = settings.ossEndpoint.hasPrefix("http") ? settings.ossEndpoint : "https://\(settings.ossEndpoint)"
+        var endpoint = settings.ossEndpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !endpoint.hasPrefix("http") {
+            endpoint = "https://\(endpoint)"
+        }
         
-        settings.log("OSS upload start: file=\(fileURL.path) bucket=\(settings.ossBucket) key=\(objectKey) region=\(settings.ossRegion) endpoint=\(endpoint)")
+        let bucket = settings.ossBucket.trimmingCharacters(in: .whitespacesAndNewlines)
+        let region = settings.ossRegion.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        settings.log("OSS upload start: file=\(fileURL.path) bucket=\(bucket) key=\(objectKey) region=\(region) endpoint=\(endpoint)")
         
         let provider = StaticCredentialsProvider(accessKeyId: akId, accessKeySecret: akSecret)
         let config = Configuration.default()
-            .withRegion(settings.ossRegion)
+            .withRegion(region)
             .withEndpoint(endpoint)
             .withCredentialsProvider(provider)
             
         let client = Client(config)
         
         let request = PutObjectRequest(
-            bucket: settings.ossBucket,
+            bucket: bucket,
             key: objectKey,
             body: .file(fileURL)
         )
@@ -42,19 +48,22 @@ class OSSService {
                 ])
             }
             
-            var host = settings.ossEndpoint
+            var host = endpoint
             if host.hasPrefix("https://") {
                 host = String(host.dropFirst(8))
             } else if host.hasPrefix("http://") {
                 host = String(host.dropFirst(7))
             }
             
-            let publicUrl = "https://\(settings.ossBucket).\(host)/\(objectKey)"
+            let publicUrl = "https://\(bucket).\(host)/\(objectKey)"
             settings.log("OSS upload success: url=\(publicUrl)")
             
             return publicUrl
+        } catch let ossError as AlibabaCloudOSS.ClientError {
+            settings.log("OSS ClientError: \(String(describing: ossError))")
+            throw ossError
         } catch {
-            settings.log("OSS upload error: \(error.localizedDescription)")
+            settings.log("OSS upload error: \(String(describing: error))")
             throw error
         }
     }

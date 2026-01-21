@@ -22,7 +22,7 @@ struct ContentView: View {
             if isRecordingMode {
                 RecordingView(recorder: recorder, settings: settings)
             } else if let task = selectedTask {
-                ResultView(task: task)
+                ResultView(task: task, settings: settings)
                     .id(task.id) // Force refresh when switching tasks
             } else {
                 Text("Select a meeting or start a new recording")
