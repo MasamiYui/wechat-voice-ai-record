@@ -47,11 +47,22 @@ struct RecordingView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 
-                if recorder.recordingMode == .separated {
-                    Text("Separated mode treats System Audio as Speaker 2 (Remote) and Microphone as Speaker 1 (Local). They will be recognized independently.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                // Description area with fixed height to prevent layout jumping
+                ZStack(alignment: .topLeading) {
+                    if recorder.recordingMode == .separated {
+                        Text("Separated mode treats System Audio as Speaker 2 (Remote) and Microphone as Speaker 1 (Local). They will be recognized independently.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .transition(.opacity)
+                    } else {
+                        Text("Mixed mode combines all audio sources into a single track for recognition. Suitable for general recordings and single-speaker scenarios.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .transition(.opacity)
+                    }
                 }
+                .frame(height: 35, alignment: .topLeading)
+                .padding(.top, 2)
             }
             .disabled(recorder.isRecording)
             .padding(.horizontal)
