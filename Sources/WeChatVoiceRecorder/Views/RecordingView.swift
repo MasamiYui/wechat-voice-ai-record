@@ -34,10 +34,12 @@ struct RecordingView: View {
                 .padding(.top)
 
                 // Configuration Card
-                VStack(spacing: 20) {
+                VStack(spacing: 24) {
                     // App Selection Row
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         HStack {
+                            Image(systemName: "app.badge")
+                                .foregroundColor(.accentColor)
                             Text("Target Application")
                                 .font(.headline)
                             Spacer()
@@ -45,7 +47,7 @@ struct RecordingView: View {
                                 Task { await recorder.refreshAvailableApps() }
                             }) {
                                 Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 12))
+                                    .font(.system(size: 12, weight: .bold))
                             }
                             .buttonStyle(.plain)
                             .help("Refresh App List")
@@ -59,15 +61,19 @@ struct RecordingView: View {
                             }
                         }
                         .labelsHidden()
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: 300) // Fixed max width for better alignment
                     }
                     
                     Divider()
 
                     // Mode Selection Row
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Recognition Mode")
-                            .font(.headline)
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "waveform.and.mic")
+                                .foregroundColor(.accentColor)
+                            Text("Recognition Mode")
+                                .font(.headline)
+                        }
                         
                         Picker("Recognition Mode", selection: $recorder.recordingMode) {
                             Text("Mixed (Default)").tag(MeetingMode.mixed)
@@ -75,6 +81,7 @@ struct RecordingView: View {
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
+                        .frame(maxWidth: 400) // Consistent width
                         
                         // Description area
                         ZStack(alignment: .topLeading) {
@@ -85,7 +92,7 @@ struct RecordingView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                                     .transition(.opacity)
                             } else {
-                                Text("Mixed mode combines all audio sources into a single track for recognition. Suitable for general recordings and single-speaker scenarios.")
+                                Text("Mixed mode combines all audio sources into a single track for recognition. Suitable for general recordings.")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -95,27 +102,32 @@ struct RecordingView: View {
                         .frame(minHeight: 32, alignment: .topLeading)
                     }
                 }
-                .padding(20)
+                .padding(24)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color(nsColor: .windowBackgroundColor))
-                        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+                        )
                 )
                 .padding(.horizontal)
                 .disabled(recorder.isRecording)
 
-                // Action Controls
-                HStack(spacing: 16) {
+                // Action Controls - Centered and compact
+                HStack {
+                    Spacer()
                     if !recorder.isRecording {
                         Button(action: {
                             recorder.startRecording()
                         }) {
-                            HStack {
+                            HStack(spacing: 8) {
                                 Image(systemName: "record.circle.fill")
-                                Text("Start Recording")
+                                Text("Record")
+                                    .fontWeight(.semibold)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
+                            .frame(width: 120)
+                            .padding(.vertical, 8)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.red)
@@ -125,19 +137,21 @@ struct RecordingView: View {
                         Button(action: {
                             recorder.stopRecording()
                         }) {
-                            HStack {
+                            HStack(spacing: 8) {
                                 Image(systemName: "stop.circle.fill")
-                                Text("Stop Recording")
+                                Text("Stop")
+                                    .fontWeight(.semibold)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
+                            .frame(width: 120)
+                            .padding(.vertical, 8)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.primary)
                         .keyboardShortcut(".", modifiers: .command)
                     }
+                    Spacer()
                 }
-                .padding(.horizontal)
+                .padding(.vertical, 8)
 
                 // Latest Task Pipeline Section
                 if let task = recorder.latestTask {
