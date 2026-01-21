@@ -23,6 +23,13 @@ class DatabaseManager {
     private let actionItems = Expression<String?>("action_items")
     private let lastError = Expression<String?>("last_error")
     
+    // New Fields
+    private let taskKey = Expression<String?>("task_key")
+    private let apiStatus = Expression<String?>("api_status")
+    private let statusText = Expression<String?>("status_text")
+    private let bizDuration = Expression<Int?>("biz_duration")
+    private let outputMp3Path = Expression<String?>("output_mp3_path")
+    
     private init() {
         setupDatabase()
     }
@@ -84,7 +91,19 @@ class DatabaseManager {
                 t.column(keyPoints)
                 t.column(actionItems)
                 t.column(lastError)
+                t.column(taskKey)
+                t.column(apiStatus)
+                t.column(statusText)
+                t.column(bizDuration)
+                t.column(outputMp3Path)
             })
+            
+            // Migration for existing tables
+            _ = try? db.run(tasks.addColumn(taskKey))
+            _ = try? db.run(tasks.addColumn(apiStatus))
+            _ = try? db.run(tasks.addColumn(statusText))
+            _ = try? db.run(tasks.addColumn(bizDuration))
+            _ = try? db.run(tasks.addColumn(outputMp3Path))
         } catch {
             print("Create table error: \(error)")
         }
@@ -110,7 +129,12 @@ class DatabaseManager {
                 summary <- task.summary,
                 keyPoints <- task.keyPoints,
                 actionItems <- task.actionItems,
-                lastError <- task.lastError
+                lastError <- task.lastError,
+                taskKey <- task.taskKey,
+                apiStatus <- task.apiStatus,
+                statusText <- task.statusText,
+                bizDuration <- task.bizDuration,
+                outputMp3Path <- task.outputMp3Path
             )
             try db.run(insert)
         } catch {
@@ -146,6 +170,11 @@ class DatabaseManager {
                 task.keyPoints = row[keyPoints]
                 task.actionItems = row[actionItems]
                 task.lastError = row[lastError]
+                task.taskKey = row[taskKey]
+                task.apiStatus = row[apiStatus]
+                task.statusText = row[statusText]
+                task.bizDuration = row[bizDuration]
+                task.outputMp3Path = row[outputMp3Path]
                 
                 results.append(task)
             }

@@ -95,4 +95,31 @@ final class TingwuCreateTaskTests: XCTestCase {
              XCTFail("Transcription missing")
         }
     }
+    
+    func testTranscriptParsingFromParagraphs() {
+        let settings = SettingsStore()
+        let task = MeetingTask(recordingId: "r1", localFilePath: "/tmp/mixed.m4a", title: "t1")
+        let manager = MeetingPipelineManager(task: task, settings: settings)
+        
+        let transcriptionData: [String: Any] = [
+            "Paragraphs": [
+                [
+                    "SpeakerId": 1,
+                    "Words": [
+                        ["Text": "你好"],
+                        ["Text": "世界"]
+                    ]
+                ],
+                [
+                    "SpeakerId": 2,
+                    "Words": [
+                        ["Text": "收到"]
+                    ]
+                ]
+            ]
+        ]
+        
+        let text = manager.buildTranscriptText(from: transcriptionData)
+        XCTAssertEqual(text, "Speaker 1: 你好世界\nSpeaker 2: 收到")
+    }
 }

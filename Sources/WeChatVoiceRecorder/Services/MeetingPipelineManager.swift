@@ -116,32 +116,38 @@ class MeetingPipelineManager: ObservableObject {
                     var updatedTask = task
                     updatedTask.status = .completed
                     
+                    // Extract Metadata
+                    if let taskKey = data?["TaskKey"] as? String { updatedTask.taskKey = taskKey }
+                    if let taskStatus = data?["TaskStatus"] as? String { updatedTask.apiStatus = taskStatus }
+                    if let statusText = data?["StatusText"] as? String { updatedTask.statusText = statusText }
+                    if let bizDuration = data?["BizDuration"] as? Int { updatedTask.bizDuration = bizDuration }
+                    if let outputMp3Path = result["OutputMp3Path"] as? String { updatedTask.outputMp3Path = outputMp3Path }
+                    
                     if let jsonData = try? JSONSerialization.data(withJSONObject: data!, options: .prettyPrinted) {
                         updatedTask.rawResponse = String(data: jsonData, encoding: .utf8)
                     }
                     
-                    // 1. Handle Transcription (Transcript)
+                    var transcriptText: String?
                     if let transcriptionUrl = result["Transcription"] as? String {
                         if let transcriptionData = try? await tingwuService.fetchJSON(url: transcriptionUrl) {
-                            if let paragraphs = transcriptionData["Paragraphs"] as? [[String: Any]] {
-                                // Extract text from Paragraphs structure
-                                let text = paragraphs.compactMap { p -> String? in
-                                    if let words = p["Words"] as? [[String: Any]] {
-                                        return words.compactMap { $0["Text"] as? String }.joined()
-                                    }
-                                    return nil
-                                }.joined(separator: "\n")
-                                updatedTask.transcript = text
-                            } else if let sentences = transcriptionData["Sentences"] as? [[String: Any]] {
-                                // Fallback to Sentences structure
-                                let text = sentences.compactMap { $0["Text"] as? String }.joined(separator: "\n")
-                                updatedTask.transcript = text
-                            }
+                            transcriptText = buildTranscriptText(from: transcriptionData)
                         }
-                    } else if let sentences = result["Sentences"] as? [[String: Any]] {
-                        // Fallback to inline Sentences if present
-                        let text = sentences.compactMap { $0["Text"] as? String }.joined(separator: "\n")
-                        updatedTask.transcript = text
+                    } else if let transcriptionObj = result["Transcription"] as? [String: Any] {
+                        transcriptText = buildTranscriptText(from: transcriptionObj)
+                    }
+                    
+                    if transcriptText == nil {
+                        if let paragraphs = result["Paragraphs"] as? [[String: Any]] {
+                            transcriptText = buildTranscriptText(from: ["Paragraphs": paragraphs])
+                        } else if let sentences = result["Sentences"] as? [[String: Any]] {
+                            transcriptText = buildTranscriptText(from: ["Sentences": sentences])
+                        } else if let transcriptInline = result["Transcript"] as? String {
+                            transcriptText = transcriptInline
+                        }
+                    }
+                    
+                    if let transcriptText, !transcriptText.isEmpty {
+                        updatedTask.transcript = transcriptText
                     }
                     
                     // 2. Handle Summarization
@@ -260,7 +266,17 @@ class MeetingPipelineManager: ObservableObject {
                 }
             } else if status == "FAILED" {
                  settings.log("Poll failed: cloud task failed")
-                 await updateStatus(.failed, error: "Task failed in cloud")
+                 
+                 // Extract Metadata for failure analysis
+                 var updatedTask = task
+                 if let data = data {
+                     if let taskKey = data["TaskKey"] as? String { updatedTask.taskKey = taskKey }
+                     if let taskStatus = data["TaskStatus"] as? String { updatedTask.apiStatus = taskStatus }
+                     if let statusText = data["StatusText"] as? String { updatedTask.statusText = statusText }
+                 }
+                 self.task = updatedTask
+                 
+                 await updateStatus(.failed, error: "Task failed in cloud: \(self.task.statusText ?? "Unknown error")")
             } else {
                  await MainActor.run { self.isProcessing = false }
             }
@@ -286,5 +302,99 @@ class MeetingPipelineManager: ObservableObject {
     
     private func save() {
         database.saveTask(self.task)
+    }
+    
+    func buildTranscriptText(from transcriptionData: [String: Any]) -> String? {
+        if let paragraphs = transcriptionData["Paragraphs"] as? [[String: Any]] {
+            let lines = paragraphs.compactMap { paragraph -> String? in
+                let speaker = extractSpeaker(from: paragraph)
+                let text = extractText(from: paragraph)
+                guard !text.isEmpty else { return nil }
+                if let speaker {
+                    return "\(speaker): \(text)"
+                }
+                return text
+            }
+            return lines.joined(separator: "\n")
+        }
+        
+        if let sentences = transcriptionData["Sentences"] as? [[String: Any]] {
+            let lines = sentences.compactMap { sentence -> String? in
+                let speaker = extractSpeaker(from: sentence)
+                let text = extractText(from: sentence)
+                guard !text.isEmpty else { return nil }
+                if let speaker {
+                    return "\(speaker): \(text)"
+                }
+                return text
+            }
+            return lines.joined(separator: "\n")
+        }
+        
+        if let transcript = transcriptionData["Transcript"] as? String {
+            return transcript
+        }
+        
+        return nil
+    }
+    
+    private func extractText(from item: [String: Any]) -> String {
+        if let text = item["Text"] as? String, !text.isEmpty {
+            return text
+        }
+        if let text = item["text"] as? String, !text.isEmpty {
+            return text
+        }
+        if let words = item["Words"] as? [[String: Any]] {
+            let wordTexts = words.compactMap { word -> String? in
+                if let text = word["Text"] as? String, !text.isEmpty {
+                    return text
+                }
+                if let text = word["text"] as? String, !text.isEmpty {
+                    return text
+                }
+                return nil
+            }
+            return wordTexts.joined()
+        }
+        if let words = item["Words"] as? [String] {
+            return words.joined()
+        }
+        return ""
+    }
+    
+    private func extractSpeaker(from item: [String: Any]) -> String? {
+        if let name = item["SpeakerName"] as? String, !name.isEmpty {
+            return name
+        }
+        if let name = item["Speaker"] as? String, !name.isEmpty {
+            return name
+        }
+        if let name = item["Role"] as? String, !name.isEmpty {
+            return name
+        }
+        if let id = item["SpeakerId"] {
+            return "Speaker \(stringify(id))"
+        }
+        if let id = item["SpeakerID"] {
+            return "Speaker \(stringify(id))"
+        }
+        if let id = item["RoleId"] {
+            return "Speaker \(stringify(id))"
+        }
+        return nil
+    }
+    
+    private func stringify(_ value: Any) -> String {
+        if let str = value as? String {
+            return str
+        }
+        if let num = value as? Int {
+            return String(num)
+        }
+        if let num = value as? Double {
+            return String(Int(num))
+        }
+        return "\(value)"
     }
 }

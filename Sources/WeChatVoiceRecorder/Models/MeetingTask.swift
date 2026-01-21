@@ -23,6 +23,10 @@ struct MeetingTask: Identifiable, Codable, Hashable, Equatable {
     
     // Tingwu Info
     var tingwuTaskId: String?
+    var taskKey: String?
+    var apiStatus: String?
+    var statusText: String?
+    var bizDuration: Int?
     var status: MeetingTaskStatus = .recorded
     var title: String
     
@@ -32,6 +36,7 @@ struct MeetingTask: Identifiable, Codable, Hashable, Equatable {
     var summary: String?
     var keyPoints: String?
     var actionItems: String?
+    var outputMp3Path: String?
     
     // Error
     var lastError: String?

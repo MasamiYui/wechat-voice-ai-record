@@ -52,7 +52,7 @@ struct ResultView: View {
                 case .overview:
                     OverviewView(task: task)
                 case .transcript:
-                    TranscriptView(text: task.transcript ?? "No transcript available.")
+                    TranscriptView(text: derivedTranscript() ?? "No transcript available.")
                 case .raw:
                     ScrollView {
                         Text(task.rawResponse ?? "No raw response.")
@@ -84,6 +84,15 @@ struct ResultView: View {
         var md = "# \(task.title)\n\n"
         md += "Date: \(task.createdAt)\n\n"
         
+        // Metadata
+        md += "## Task Info\n"
+        if let key = task.taskKey { md += "- Task Key: \(key)\n" }
+        if let status = task.apiStatus { md += "- Status: \(status)\n" }
+        if let error = task.statusText, !error.isEmpty { md += "- Message: \(error)\n" }
+        if let duration = task.bizDuration { md += "- Duration: \(duration / 1000)s\n" }
+        if let mp3 = task.outputMp3Path { md += "- Audio: [Download](\(mp3))\n" }
+        md += "\n"
+        
         if let summary = task.summary {
             md += "## Summary\n\(summary)\n\n"
         }
@@ -96,11 +105,194 @@ struct ResultView: View {
             md += "## Action Items\n\(actionItems)\n\n"
         }
         
-        if let transcript = task.transcript {
+        if let transcript = derivedTranscript() {
             md += "## Transcript\n\(transcript)\n"
         }
         
         return md
+    }
+    
+    private func derivedTranscript() -> String? {
+        if let transcript = task.transcript, !transcript.isEmpty {
+            return transcript
+        }
+        guard let raw = task.rawResponse,
+              let data = raw.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let result = json["Result"] as? [String: Any] else {
+            return nil
+        }
+        
+        if let transcription = result["Transcription"] as? [String: Any] {
+            return extractTranscript(from: transcription)
+        }
+        if let paragraphs = result["Paragraphs"] as? [[String: Any]] {
+            return extractTranscript(from: ["Paragraphs": paragraphs])
+        }
+        if let sentences = result["Sentences"] as? [[String: Any]] {
+            return extractTranscript(from: ["Sentences": sentences])
+        }
+        if let transcript = result["Transcript"] as? String {
+            return transcript
+        }
+        return nil
+    }
+    
+    private func extractTranscript(from transcriptionData: [String: Any]) -> String? {
+        if let paragraphs = transcriptionData["Paragraphs"] as? [[String: Any]] {
+            let lines = paragraphs.compactMap { paragraph -> String? in
+                let speaker = extractSpeaker(from: paragraph)
+                let text = extractText(from: paragraph)
+                guard !text.isEmpty else { return nil }
+                if let speaker {
+                    return "\(speaker): \(text)"
+                }
+                return text
+            }
+            return lines.joined(separator: "\n")
+        }
+        
+        if let sentences = transcriptionData["Sentences"] as? [[String: Any]] {
+            let lines = sentences.compactMap { sentence -> String? in
+                let speaker = extractSpeaker(from: sentence)
+                let text = extractText(from: sentence)
+                guard !text.isEmpty else { return nil }
+                if let speaker {
+                    return "\(speaker): \(text)"
+                }
+                return text
+            }
+            return lines.joined(separator: "\n")
+        }
+        
+        if let transcript = transcriptionData["Transcript"] as? String {
+            return transcript
+        }
+        
+        return nil
+    }
+    
+    private func extractText(from item: [String: Any]) -> String {
+        if let text = item["Text"] as? String, !text.isEmpty {
+            return text
+        }
+        if let text = item["text"] as? String, !text.isEmpty {
+            return text
+        }
+        if let words = item["Words"] as? [[String: Any]] {
+            let wordTexts = words.compactMap { word -> String? in
+                if let text = word["Text"] as? String, !text.isEmpty {
+                    return text
+                }
+                if let text = word["text"] as? String, !text.isEmpty {
+                    return text
+                }
+                return nil
+            }
+            return wordTexts.joined()
+        }
+        if let words = item["Words"] as? [String] {
+            return words.joined()
+        }
+        return ""
+    }
+    
+    private func extractSpeaker(from item: [String: Any]) -> String? {
+        if let name = item["SpeakerName"] as? String, !name.isEmpty {
+            return name
+        }
+        if let name = item["Speaker"] as? String, !name.isEmpty {
+            return name
+        }
+        if let name = item["Role"] as? String, !name.isEmpty {
+            return name
+        }
+        if let id = item["SpeakerId"] {
+            return "Speaker \(stringify(id))"
+        }
+        if let id = item["SpeakerID"] {
+            return "Speaker \(stringify(id))"
+        }
+        if let id = item["RoleId"] {
+            return "Speaker \(stringify(id))"
+        }
+        return nil
+    }
+    
+    private func stringify(_ value: Any) -> String {
+        if let str = value as? String {
+            return str
+        }
+        if let num = value as? Int {
+            return String(num)
+        }
+        if let num = value as? Double {
+            return String(Int(num))
+        }
+        return "\(value)"
+    }
+}
+
+struct TaskInfoView: View {
+    let task: MeetingTask
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "info.circle")
+                    .foregroundColor(.blue)
+                Text("Task Info")
+                    .font(.headline)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                if let key = task.taskKey {
+                    InfoRow(label: "Task Key", value: key)
+                }
+                if let status = task.apiStatus {
+                    InfoRow(label: "Status", value: status)
+                }
+                if let error = task.statusText, !error.isEmpty {
+                     InfoRow(label: "Message", value: error)
+                }
+                if let duration = task.bizDuration {
+                    InfoRow(label: "Duration", value: "\(duration / 1000)s")
+                }
+                if let mp3 = task.outputMp3Path, let url = URL(string: mp3) {
+                     HStack(alignment: .top) {
+                        Text("Audio:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .frame(width: 80, alignment: .leading)
+                        Link("Download Audio", destination: url)
+                            .font(.subheadline)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
+struct InfoRow: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack(alignment: .top) {
+            Text(label + ":")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .frame(width: 80, alignment: .leading)
+            Text(value)
+                .font(.subheadline)
+                .textSelection(.enabled)
+        }
     }
 }
 
@@ -110,6 +302,9 @@ struct OverviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                // Task Info
+                TaskInfoView(task: task)
+                
                 if let summary = task.summary, !summary.isEmpty {
                     SectionCard(title: "Summary", icon: "doc.text", content: summary, color: .blue)
                 }
