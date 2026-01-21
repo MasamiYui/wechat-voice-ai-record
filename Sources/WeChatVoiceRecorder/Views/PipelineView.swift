@@ -166,7 +166,19 @@ struct PipelineView: View {
     
     private func isAfter(_ status: MeetingTaskStatus) -> Bool {
         let order: [MeetingTaskStatus] = [.recorded, .transcoding, .transcoded, .uploading, .uploaded, .created, .polling, .completed]
-        guard let currentIndex = order.firstIndex(of: manager.task.status),
+        
+        let currentStatus: MeetingTaskStatus
+        if manager.task.status == .failed {
+            if let failedStep = manager.task.failedStep {
+                currentStatus = failedStep
+            } else {
+                return false
+            }
+        } else {
+            currentStatus = manager.task.status
+        }
+        
+        guard let currentIndex = order.firstIndex(of: currentStatus),
               let targetIndex = order.firstIndex(of: status) else { return false }
         
         return currentIndex > targetIndex
