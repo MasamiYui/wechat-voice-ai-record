@@ -1,12 +1,17 @@
 import Foundation
 import MySQLKit
 import AsyncKit
+import NIOSSL
 
-class MySQLStorage: StorageProvider {
+enum StorageError: Error {
+    case poolNotInitialized
+}
+
+final class MySQLStorage: StorageProvider, @unchecked Sendable {
     private let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
     private var pool: EventLoopGroupConnectionPool<MySQLConnectionSource>?
     
-    struct Config {
+    struct Config: Sendable {
         let host: String
         let port: Int
         let user: String
@@ -22,13 +27,16 @@ class MySQLStorage: StorageProvider {
     }
     
     private func setupPool() {
+        var tlsConfig = TLSConfiguration.makeClientConfiguration()
+        tlsConfig.certificateVerification = .none
+        
         let mysqlConfig = MySQLConfiguration(
             hostname: config.host,
             port: config.port,
             username: config.user,
             password: config.password,
             database: config.database,
-            tlsConfiguration: .forClient(certificateVerification: .none)
+            tlsConfiguration: tlsConfig
         )
         
         let source = MySQLConnectionSource(configuration: mysqlConfig)
@@ -36,7 +44,9 @@ class MySQLStorage: StorageProvider {
     }
     
     func createTableIfNeeded() async throws {
-        guard let pool = pool else { return }
+        guard let pool = pool else {
+            throw StorageError.poolNotInitialized
+        }
         let sql = """
         CREATE TABLE IF NOT EXISTS meeting_tasks (
             id VARCHAR(36) PRIMARY KEY,
@@ -73,13 +83,15 @@ class MySQLStorage: StorageProvider {
             speaker2_status VARCHAR(50)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """
-        try await pool.withConnection { conn in
+        _ = try await pool.withConnection { conn in
             conn.query(sql)
         }.get()
     }
     
     func fetchTasks() async throws -> [MeetingTask] {
-        guard let pool = pool else { return [] }
+        guard let pool = pool else {
+            throw StorageError.poolNotInitialized
+        }
         return try await pool.withConnection { conn in
             conn.query("SELECT * FROM meeting_tasks ORDER BY created_at DESC").flatMapThrowing { rows in
                 rows.compactMap { self.mapRowToTask($0) }
@@ -88,7 +100,9 @@ class MySQLStorage: StorageProvider {
     }
     
     func saveTask(_ task: MeetingTask) async throws {
-        guard let pool = pool else { return }
+        guard let pool = pool else {
+            throw StorageError.poolNotInitialized
+        }
         
         let sql = """
         INSERT INTO meeting_tasks (
@@ -118,7 +132,7 @@ class MySQLStorage: StorageProvider {
             speaker2_status=VALUES(speaker2_status);
         """
         
-        try await pool.withConnection { conn in
+        _ = try await pool.withConnection { conn in
             let binds: [MySQLData] = [
                 MySQLData(string: task.id.uuidString),
                 MySQLData(date: task.createdAt),
@@ -156,23 +170,38 @@ class MySQLStorage: StorageProvider {
             return conn.query(sql, binds)
         }.get()
     }
+
+    func updateTaskStatus(id: UUID, status: MeetingTaskStatus) async throws {
+        guard let pool = pool else {
+            throw StorageError.poolNotInitialized
+        }
+        _ = try await pool.withConnection { conn in
+            conn.query("UPDATE meeting_tasks SET status = ? WHERE id = ?", [MySQLData(string: status.rawValue), MySQLData(string: id.uuidString)])
+        }.get()
+    }
     
     func deleteTask(id: UUID) async throws {
-        guard let pool = pool else { return }
-        try await pool.withConnection { conn in
+        guard let pool = pool else {
+            throw StorageError.poolNotInitialized
+        }
+        _ = try await pool.withConnection { conn in
             conn.query("DELETE FROM meeting_tasks WHERE id = ?", [MySQLData(string: id.uuidString)])
         }.get()
     }
     
     func updateTaskTitle(id: UUID, newTitle: String) async throws {
-        guard let pool = pool else { return }
-        try await pool.withConnection { conn in
+        guard let pool = pool else {
+            throw StorageError.poolNotInitialized
+        }
+        _ = try await pool.withConnection { conn in
             conn.query("UPDATE meeting_tasks SET title = ? WHERE id = ?", [MySQLData(string: newTitle), MySQLData(string: id.uuidString)])
         }.get()
     }
     
     func getTask(id: UUID) async throws -> MeetingTask? {
-        guard let pool = pool else { return nil }
+        guard let pool = pool else {
+            throw StorageError.poolNotInitialized
+        }
         return try await pool.withConnection { conn in
             conn.query("SELECT * FROM meeting_tasks WHERE id = ?", [MySQLData(string: id.uuidString)]).flatMapThrowing { rows in
                 rows.first.flatMap { self.mapRowToTask($0) }

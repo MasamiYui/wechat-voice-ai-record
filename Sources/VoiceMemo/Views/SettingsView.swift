@@ -125,57 +125,68 @@ struct SettingsView: View {
                     }
                 }
                 
-                Section(header: Text("MySQL Configuration")) {
-                    TextField("Host", text: $settings.mysqlHost)
-                    TextField("Port", value: $settings.mysqlPort, formatter: NumberFormatter())
-                    TextField("User", text: $settings.mysqlUser)
-                    TextField("Database", text: $settings.mysqlDatabase)
+                if settings.storageType == .mysql {
+                    Section(header: Text("MySQL Configuration")) {
+                        TextField("Host", text: $settings.mysqlHost)
+                        TextField("Port", value: $settings.mysqlPort, formatter: NumberFormatter())
+                        TextField("User", text: $settings.mysqlUser)
+                        TextField("Database", text: $settings.mysqlDatabase)
+                        
+                        if settings.hasMySQLPassword {
+                            HStack {
+                                Text("Password: ******")
+                                Spacer()
+                                Button("Clear") {
+                                    settings.saveMySQLPassword("")
+                                }
+                            }
+                        } else {
+                            SecureField("Password", text: $mysqlPasswordInput)
+                            Button("Save Password") {
+                                settings.saveMySQLPassword(mysqlPasswordInput)
+                                mysqlPasswordInput = ""
+                            }
+                            .disabled(mysqlPasswordInput.isEmpty)
+                        }
+                    }
                     
-                    if settings.hasMySQLPassword {
-                        HStack {
-                            Text("Password: ******")
-                            Spacer()
-                            Button("Clear") {
-                                settings.saveMySQLPassword("")
+                    Section(header: Text("Actions")) {
+                        Button("Test MySQL Connection") {
+                            Task {
+                                await testMySQL()
                             }
                         }
-                    } else {
-                        SecureField("Password", text: $mysqlPasswordInput)
-                        Button("Save Password") {
-                            settings.saveMySQLPassword(mysqlPasswordInput)
-                            mysqlPasswordInput = ""
+                        if !mysqlTestStatus.isEmpty {
+                            Text(mysqlTestStatus)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
-                        .disabled(mysqlPasswordInput.isEmpty)
-                    }
-                }
-                
-                Section(header: Text("Actions")) {
-                    Button("Test MySQL Connection") {
-                        Task {
-                            await testMySQL()
+                        
+                        Divider()
+                        
+                        Button("Sync Local to MySQL") {
+                            Task {
+                                await storageManager.syncToMySQL()
+                            }
+                        }
+                        .disabled(storageManager.isSyncing)
+                        
+                        if storageManager.isSyncing {
+                            ProgressView("Syncing...", value: storageManager.syncProgress, total: 1.0)
+                        }
+                        
+                        if let err = storageManager.syncError {
+                            Text("Sync Error: \(err)").foregroundColor(.red)
                         }
                     }
-                    if !mysqlTestStatus.isEmpty {
-                        Text(mysqlTestStatus)
+                } else {
+                    Section(header: Text("MySQL")) {
+                        Text("Switch to MySQL mode to configure connection and sync local history.")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                    }
-                    
-                    Divider()
-                    
-                    Button("Sync Local to MySQL") {
-                        Task {
-                            await storageManager.syncToMySQL()
+                        Button("Go to MySQL Setup") {
+                            settings.storageType = .mysql
                         }
-                    }
-                    .disabled(storageManager.isSyncing)
-                    
-                    if storageManager.isSyncing {
-                        ProgressView("Syncing...", value: storageManager.syncProgress, total: 1.0)
-                    }
-                    
-                    if let err = storageManager.syncError {
-                        Text("Sync Error: \(err)").foregroundColor(.red)
                     }
                 }
             }
