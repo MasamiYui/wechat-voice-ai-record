@@ -96,11 +96,19 @@ Open Settings in the app and configure:
 
 ### 4. Audio Outputs
 
-Raw recordings are saved to your `Downloads` directory:
+Recorded audio files are saved to:
 
-- `remote_[timestamp]_[id].m4a`: The other person's voice.
-- `local_[timestamp]_[id].m4a`: Your voice.
-- `mixed_[timestamp]_[id].m4a`: The merged conversation.
+- `~/Downloads/VoiceMemoRecordings/`
+
+Filenames:
+
+- `recording-<timestamp>-remote.m4a`: Remote/system audio.
+- `recording-<timestamp>-local.m4a`: Local microphone audio.
+- `recording-<timestamp>-mixed.m4a`: Merged conversation (Mixed mode).
+
+Imported audio files are copied into the app sandbox:
+
+- `~/Library/Application Support/VoiceMemo/recordings/` (filename: `<uuid>.<ext>`)
 
 ### 5. Generate minutes
 

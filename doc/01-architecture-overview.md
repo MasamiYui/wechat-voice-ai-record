@@ -33,7 +33,7 @@ This document explains how the app is structured end-to-end: UI, recording, pipe
 
 - UI layer (SwiftUI)
   - `ContentView` builds a `NavigationSplitView` with:
-    - Sidebar: `HistoryView` + "New Recording"
+    - Sidebar: `HistoryView` (Search, Import Audio, New Recording, task history)
     - Detail: `RecordingView` or `ResultView` depending on selection
   - `RecordingView` embeds `PipelineView` for the latest task.
 - Domain model

@@ -96,11 +96,19 @@ open VoiceMemo.app
 
 ### 4. 音频输出
 
-原始录音文件将保存至您的 `下载 (Downloads)` 目录，命名规则如下：
+录制输出将保存至：
 
-- `remote_[时间戳]_[ID].m4a`：对方的声音。
-- `local_[时间戳]_[ID].m4a`：您的声音。
-- `mixed_[时间戳]_[ID].m4a`：合成后的对话内容。
+- `~/Downloads/VoiceMemoRecordings/`
+
+文件命名规则：
+
+- `recording-<timestamp>-remote.m4a`：系统/远端音频（对方声音）。
+- `recording-<timestamp>-local.m4a`：麦克风/本地音频（自己的声音）。
+- `recording-<timestamp>-mixed.m4a`：合成后的对话内容（混合模式）。
+
+导入音频会被拷贝到应用沙盒目录：
+
+- `~/Library/Application Support/VoiceMemo/recordings/`（文件名：`<uuid>.<ext>`）
 
 ### 5. 生成会议纪要
 

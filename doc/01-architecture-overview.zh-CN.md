@@ -33,7 +33,7 @@
 
 - UI 层（SwiftUI）
   - `ContentView` 使用 `NavigationSplitView`：
-    - 左侧：`HistoryView` + “New Recording”
+    - 左侧：`HistoryView`（搜索、Import Audio、New Recording、任务历史列表）
     - 右侧：根据选择展示 `RecordingView` 或 `ResultView`
   - `RecordingView` 内嵌 `PipelineView` 展示最新任务的流水线操作。
 - 领域模型
