@@ -24,66 +24,7 @@ struct HistoryView: View {
     
     var body: some View {
         List(selection: $selectedTask) {
-            Section {
-                // New Recording Button Item
-                Button(action: {
-                    selectedTask = nil
-                    isRecordingMode = true
-                }) {
-                    HStack {
-                        Label("New Recording", systemImage: "mic.badge.plus")
-                            .font(.body)
-                            .foregroundColor(isRecordingMode ? .accentColor : .primary)
-                        Spacer()
-                    }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .listRowBackground(isRecordingMode ? Color.accentColor.opacity(0.15) : nil)
-                
-                // Import Audio Button Item
-                Button(action: {
-                    isShowingImportSheet = true
-                }) {
-                    HStack {
-                        Label("Import Audio", systemImage: "square.and.arrow.down")
-                            .font(.body)
-                            .foregroundColor(.primary)
-                        Spacer()
-                    }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            
-            Section(header: Text("History").font(.subheadline).fontWeight(.semibold).foregroundColor(.secondary)) {
-                ForEach(filteredTasks) { task in
-                    NavigationLink(value: task) {
-                        HistoryRow(task: task)
-                    }
-                    .contextMenu {
-                        Button {
-                            taskToRename = task
-                            newTitle = task.title
-                            isShowingRenameAlert = true
-                        } label: {
-                            Label("Rename", systemImage: "pencil")
-                        }
-
-                        Divider()
-
-                        Button(role: .destructive) {
-                            pendingDeleteTask = task
-                            isShowingDeleteAlert = true
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
+            sidebarContent
         }
         .listStyle(.sidebar)
         .searchable(text: $searchText, placement: .sidebar, prompt: "Search")
@@ -136,6 +77,70 @@ struct HistoryView: View {
             Button("Cancel", role: .cancel) {
                 taskToRename = nil
             }
+        }
+    }
+    
+    @ViewBuilder
+    private var sidebarContent: some View {
+        Section {
+            // New Recording Button Item
+            Button(action: {
+                selectedTask = nil
+                isRecordingMode = true
+            }) {
+                HStack {
+                    Label("New Recording", systemImage: "mic.badge.plus")
+                        .font(.body)
+                        .foregroundColor(isRecordingMode ? .accentColor : .primary)
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .listRowBackground(isRecordingMode ? Color.accentColor.opacity(0.15) : nil)
+            
+            // Import Audio Button Item
+            Button(action: {
+                isShowingImportSheet = true
+            }) {
+                HStack {
+                    Label("Import Audio", systemImage: "square.and.arrow.down")
+                        .font(.body)
+                        .foregroundColor(.primary)
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        
+        Section(header: Text("History").font(.subheadline).fontWeight(.semibold).foregroundColor(.secondary)) {
+            ForEach(filteredTasks) { task in
+                NavigationLink(value: task) {
+                    HistoryRow(task: task)
+                }
+                .contextMenu {
+                    Button {
+                        taskToRename = task
+                        newTitle = task.title
+                        isShowingRenameAlert = true
+                    } label: {
+                        Label("Rename", systemImage: "pencil")
+                    }
+
+                    Divider()
+
+                    Button(role: .destructive) {
+                        pendingDeleteTask = task
+                        isShowingDeleteAlert = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+            }
+            .onDelete(perform: deleteItems)
         }
     }
     
