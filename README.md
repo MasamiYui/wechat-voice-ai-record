@@ -120,6 +120,8 @@ After a recording completes, the latest task appears in the pipeline UI. Trigger
 
 Use the sidebar action **Import Audio** to create a meeting task from an existing audio file, then run the same pipeline steps as above.
 
+For detailed instructions on import modes (Meeting vs Dictation), please refer to the [Audio Import Guide](doc/08-import-guide.md).
+
 ## Development
 
 To open the project in Xcode for debugging:

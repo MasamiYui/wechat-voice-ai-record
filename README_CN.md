@@ -120,6 +120,8 @@ open VoiceMemo.app
 
 使用左侧栏的 **Import Audio** 从已有音频文件创建任务，然后按上述相同步骤运行流水线。
 
+有关导入模式（会议模式 vs 听写模式）的详细说明，请参阅 [音频导入指南](doc/08-import-guide.zh-CN.md)。
+
 ## 开发与调试
 
 若要在 Xcode 中打开项目进行调试：
