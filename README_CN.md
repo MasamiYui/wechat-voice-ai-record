@@ -96,17 +96,29 @@ open VoiceMemo.app
 
 ### 4. 音频输出
 
-原始录音文件将保存至您的 `下载 (Downloads)` 目录，命名规则如下：
+录制输出将保存至：
 
-- `remote_[时间戳]_[ID].m4a`：对方的声音。
-- `local_[时间戳]_[ID].m4a`：您的声音。
-- `mixed_[时间戳]_[ID].m4a`：合成后的对话内容。
+- `~/Downloads/VoiceMemoRecordings/`
+
+文件命名规则：
+
+- `recording-<timestamp>-remote.m4a`：系统/远端音频（对方声音）。
+- `recording-<timestamp>-local.m4a`：麦克风/本地音频（自己的声音）。
+- `recording-<timestamp>-mixed.m4a`：合成后的对话内容（混合模式）。
+
+导入音频会被拷贝到应用沙盒目录：
+
+- `~/Library/Application Support/VoiceMemo/recordings/`（文件名：`<uuid>.<ext>`）
 
 ### 5. 生成会议纪要
 
 录音完成后，界面会出现最新任务的流水线节点，按顺序手动触发：
 - 转码 → 上传 → 创建任务 → 刷新状态
 - 查看结果 → 导出 Markdown
+
+### 6. 导入音频（可选）
+
+使用左侧栏的 **Import Audio** 从已有音频文件创建任务，然后按上述相同步骤运行流水线。
 
 ## 开发与调试
 
@@ -123,6 +135,7 @@ xed VoiceMemo.xcodeproj
 
 - [x] 双轨录制 (对方 + 自己)
 - [x] 自动音频合成
+- [x] 音频导入 (支持外部文件)
 - [x] 集成阿里云听悟离线转写 + 会议纪要生成
 - [x] 集成 OSS 上传
 - [x] 手动触发流水线 UI（转码/上传/创建/轮询）

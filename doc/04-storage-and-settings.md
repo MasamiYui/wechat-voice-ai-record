@@ -127,7 +127,7 @@ Accounts used:
 - Always prints to stdout.
 - Writes to a file only when:
   - verbose logging enabled, or
-  - message contains `error` / `failed` / `test`
+  - message contains `error` / `failed` / `test` / `system`
 
 Log file:
 

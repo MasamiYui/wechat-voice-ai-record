@@ -33,7 +33,7 @@
 
 - UI 层（SwiftUI）
   - `ContentView` 使用 `NavigationSplitView`：
-    - 左侧：`HistoryView` + “New Recording”
+    - 左侧：`HistoryView`（搜索、Import Audio、New Recording、任务历史列表）
     - 右侧：根据选择展示 `RecordingView` 或 `ResultView`
   - `RecordingView` 内嵌 `PipelineView` 展示最新任务的流水线操作。
 - 领域模型
@@ -62,10 +62,9 @@ flowchart TD
   I1 --> J1[MeetingPipelineManager]
   
   G1 -->|分离模式| I2[创建 MeetingTask]
-  I2 --> J2[SeparatedMeetingPipelineManager]
+  I2 --> J1
   
   J1 --> K[转码/上传/听悟/轮询]
-  J2 --> K
   
   K --> O[保存转写/总结/对齐结果]
   O --> P[ResultView 导出 Markdown]

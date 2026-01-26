@@ -2,7 +2,7 @@
 
 ## 文档目的
 
-说明录音保存后，在 UI 中手动触发的流水线节点：转码、上传 OSS、创建听悟任务与轮询结果。
+说明录音保存后（或导入音频后），在 UI 中手动触发的流水线节点：转码、上传 OSS、创建听悟任务与轮询结果。
 
 ## 关键文件
 
@@ -13,10 +13,9 @@
 
 ## 流水线管理器
 
-根据录制模式的不同，应用使用不同的流水线管理器：
+应用使用单一流水线管理器：
 
-- **`MeetingPipelineManager`**：用于处理“混合模式”任务。它负责单路音频的转码、上传和听悟任务创建。
-- **`SeparatedMeetingPipelineManager`**：用于处理“分离模式”任务。它会独立处理 Speaker 1 (本地) 和 Speaker 2 (远端) 的两路音频，并最终进行对话对齐。
+- **`MeetingPipelineManager`**：同时支持“混合模式”和“分离模式”。具体行为由 `MeetingTask.mode` 决定（例如：单文件 vs 双文件的上传/创建/轮询）。
 
 ## 流水线节点 (混合模式)
 
@@ -103,4 +102,3 @@
   - `ACS3-HMAC-SHA256 Credential=<akId>,SignedHeaders=<...>,Signature=<...>`
 
 Canonical Request 的构造在 `Tests/VoiceMemoTests/TingwuSignatureTests.swift` 中有测试用例。
-

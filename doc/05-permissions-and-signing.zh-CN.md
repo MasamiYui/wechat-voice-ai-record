@@ -28,8 +28,12 @@ ScreenCaptureKit 采集系统音频需要屏幕录制权限。
 
 当前包含：
 
+- `com.apple.security.app-sandbox`
 - `com.apple.security.device.audio-input`
 - `com.apple.security.device.camera`
+- `com.apple.security.files.downloads.read-write`
+- `com.apple.security.files.user-selected.read-write`
+- `com.apple.security.network.client`
 - `com.apple.security.personal-information.photos-library`
 
 仅添加真实功能需要的 entitlement，避免扩大权限面导致不必要的风险与用户不信任。

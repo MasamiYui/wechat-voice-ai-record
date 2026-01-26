@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Document the manual pipeline executed from the UI after a recording is saved.
+Document the manual pipeline executed from the UI after a recording is saved (or after an audio file is imported).
 
 ## Key Files
 
@@ -13,10 +13,9 @@ Document the manual pipeline executed from the UI after a recording is saved.
 
 ## Pipeline Managers
 
-Depending on the recording mode, the app uses different pipeline managers:
+The app uses a single pipeline manager:
 
-- **`MeetingPipelineManager`**: For "Mixed Mode" tasks. Handles transcoding, uploading, and creating Tingwu task for a single audio file.
-- **`SeparatedMeetingPipelineManager`**: For "Separated Mode" tasks. Independently processes Speaker 1 (Local) and Speaker 2 (Remote) audio files and aligns the conversation.
+- **`MeetingPipelineManager`**: Handles both "Mixed" and "Separated" mode tasks. Mode-specific behavior is selected via `MeetingTask.mode` (e.g. upload/create/poll for one file vs two files).
 
 ## Pipeline Steps (Mixed Mode)
 
@@ -102,4 +101,3 @@ On success:
   - `ACS3-HMAC-SHA256 Credential=<akId>,SignedHeaders=<...>,Signature=<...>`
 
 The canonical request builder is tested in `Tests/VoiceMemoTests/TingwuSignatureTests.swift`.
-

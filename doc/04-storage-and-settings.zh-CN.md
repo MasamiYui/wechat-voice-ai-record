@@ -127,7 +127,7 @@ accounts：
 - 永远输出到控制台。
 - 落盘条件：
   - 开启 verbose，或
-  - message 包含 `error` / `failed` / `test`
+  - message 包含 `error` / `failed` / `test` / `system`
 
 日志文件路径：
 

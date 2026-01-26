@@ -28,8 +28,12 @@ File: `VoiceMemo.entitlements`
 
 Current keys:
 
+- `com.apple.security.app-sandbox`
 - `com.apple.security.device.audio-input`
 - `com.apple.security.device.camera`
+- `com.apple.security.files.downloads.read-write`
+- `com.apple.security.files.user-selected.read-write`
+- `com.apple.security.network.client`
 - `com.apple.security.personal-information.photos-library`
 
 Only add entitlements that are required by actual features; extra entitlements increase review and user trust risks.
