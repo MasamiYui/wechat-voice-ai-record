@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct HistoryView: View {
     @ObservedObject var store: HistoryStore
@@ -49,6 +50,26 @@ struct HistoryView: View {
             }
             .buttonStyle(.plain)
             .listRowBackground(isRecordingMode ? Color.gray.opacity(0.1) : Color.clear)
+            
+            // Import Audio Button Item
+            Button(action: {
+                openImportPanel()
+            }) {
+                HStack {
+                    Circle()
+                        .fill(Color.clear)
+                        .frame(width: 8, height: 8)
+                    
+                    Label("Import Audio", systemImage: "square.and.arrow.down")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             
             Section(header: Text("History").font(.caption).foregroundColor(.secondary)) {
                 ForEach(filteredTasks) { task in
@@ -138,6 +159,32 @@ struct HistoryView: View {
             }
             Button("Cancel", role: .cancel) {
                 taskToRename = nil
+            }
+        }
+    }
+    
+    private func openImportPanel() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType.audio]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.prompt = "Import"
+        panel.message = "Select an audio file to import"
+        
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                Task {
+                    do {
+                        let newTask = try await store.importAudio(from: url)
+                        await MainActor.run {
+                            self.selectedTask = newTask
+                            self.isRecordingMode = false
+                        }
+                    } catch {
+                        print("Import failed: \(error)")
+                    }
+                }
             }
         }
     }
