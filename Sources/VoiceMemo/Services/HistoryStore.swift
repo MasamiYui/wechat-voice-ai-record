@@ -50,38 +50,65 @@ class HistoryStore: ObservableObject {
         }
     }
     
-    func importAudio(from sourceURL: URL) async throws -> MeetingTask {
-        // 1. Generate unique ID and path
-        let uuid = UUID().uuidString
-        let fileExt = sourceURL.pathExtension
-        let fileName = "\(uuid).\(fileExt)"
+    func importTask(mode: MeetingMode, files: [URL]) async throws -> MeetingTask {
+        guard !files.isEmpty else {
+            throw NSError(domain: "HistoryStore", code: 400, userInfo: [NSLocalizedDescriptionKey: "No files provided"])
+        }
         
+        let uuid = UUID().uuidString
         let recordingsDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("VoiceMemo/recordings")
         
         try FileManager.default.createDirectory(at: recordingsDir, withIntermediateDirectories: true)
         
-        let destinationURL = recordingsDir.appendingPathComponent(fileName)
+        var task = MeetingTask(recordingId: uuid, localFilePath: "", title: "")
+        task.mode = mode
         
-        // 2. Copy file
-        // Start accessing security scoped resource if needed (for user selected files)
-        let startAccessing = sourceURL.startAccessingSecurityScopedResource()
-        defer {
-            if startAccessing {
-                sourceURL.stopAccessingSecurityScopedResource()
+        // Helper to safely copy file
+        func copyFile(from src: URL, suffix: String) throws -> URL {
+            let ext = src.pathExtension
+            let fileName = "\(uuid)\(suffix).\(ext)"
+            let dst = recordingsDir.appendingPathComponent(fileName)
+            
+            let startAccessing = src.startAccessingSecurityScopedResource()
+            defer { if startAccessing { src.stopAccessingSecurityScopedResource() } }
+            
+            if FileManager.default.fileExists(atPath: dst.path) {
+                try FileManager.default.removeItem(at: dst)
             }
+            try FileManager.default.copyItem(at: src, to: dst)
+            return dst
         }
         
-        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        if mode == .mixed {
+            guard let url = files.first else { throw NSError(domain: "HistoryStore", code: 400, userInfo: [NSLocalizedDescriptionKey: "Missing file"]) }
+            let dst = try copyFile(from: url, suffix: "")
+            
+            task.localFilePath = dst.path
+            task.title = url.deletingPathExtension().lastPathComponent
+            
+        } else {
+            // Separated
+            guard files.count >= 2 else { throw NSError(domain: "HistoryStore", code: 400, userInfo: [NSLocalizedDescriptionKey: "Missing files for separated mode"]) }
+            let url1 = files[0]
+            let url2 = files[1]
+            
+            let dst1 = try copyFile(from: url1, suffix: "-spk1")
+            let dst2 = try copyFile(from: url2, suffix: "-spk2")
+            
+            task.speaker1AudioPath = dst1.path
+            task.speaker2AudioPath = dst2.path
+            task.localFilePath = dst1.path // Primary reference
+            task.title = url1.deletingPathExtension().lastPathComponent
+        }
         
-        // 3. Create Task
-        let title = sourceURL.deletingPathExtension().lastPathComponent
-        let task = MeetingTask(recordingId: uuid, localFilePath: destinationURL.path, title: title)
-        
-        // 4. Save
         try await StorageManager.shared.currentProvider.saveTask(task)
         await refresh()
         
         return task
+    }
+
+    func importAudio(from sourceURL: URL) async throws -> MeetingTask {
+        return try await importTask(mode: .mixed, files: [sourceURL])
     }
 }

@@ -12,6 +12,7 @@ struct HistoryView: View {
     @State private var taskToRename: MeetingTask?
     @State private var newTitle: String = ""
     @State private var isShowingRenameAlert = false
+    @State private var isShowingImportSheet = false
     
     var filteredTasks: [MeetingTask] {
         if searchText.isEmpty {
@@ -43,7 +44,7 @@ struct HistoryView: View {
                 
                 // Import Audio Button Item
                 Button(action: {
-                    openImportPanel()
+                    isShowingImportSheet = true
                 }) {
                     HStack {
                         Label("Import Audio", systemImage: "square.and.arrow.down")
@@ -87,6 +88,11 @@ struct HistoryView: View {
         .listStyle(.sidebar)
         .searchable(text: $searchText, placement: .sidebar, prompt: "Search")
         .navigationTitle("Voice Memo")
+        .sheet(isPresented: $isShowingImportSheet) {
+            ImportSheet { mode, files in
+                handleImport(mode: mode, files: files)
+            }
+        }
         .toolbar {
             Button(action: {
                 Task { await store.refresh() }
@@ -133,28 +139,17 @@ struct HistoryView: View {
         }
     }
     
-    private func openImportPanel() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [UTType.audio]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.prompt = "Import"
-        panel.message = "Select an audio file to import"
-        
-        panel.begin { response in
-            if response == .OK, let url = panel.url {
-                Task {
-                    do {
-                        let newTask = try await store.importAudio(from: url)
-                        await MainActor.run {
-                            self.selectedTask = newTask
-                            self.isRecordingMode = false
-                        }
-                    } catch {
-                        print("Import failed: \(error)")
-                    }
+    private func handleImport(mode: MeetingMode, files: [URL]) {
+        Task {
+            do {
+                let newTask = try await store.importTask(mode: mode, files: files)
+                await MainActor.run {
+                    self.selectedTask = newTask
+                    self.isRecordingMode = false
                 }
+            } catch {
+                print("Import failed: \(error)")
+                // Optionally show error alert
             }
         }
     }
