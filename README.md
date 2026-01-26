@@ -123,6 +123,7 @@ Ensure you configure **Signing & Capabilities** with your Development Team to ru
 
 - [x] Dual-track recording (Remote + Local)
 - [x] Automatic audio merging
+- [x] Audio Import (Support for external files)
 - [x] Alibaba Cloud Tingwu offline transcription + minutes generation
 - [x] OSS upload integration
 - [x] Manual pipeline UI (transcode/upload/create/poll)

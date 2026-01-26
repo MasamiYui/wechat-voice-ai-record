@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-01-26
+
+### Added
+- **Audio Import**: Support for importing external audio files directly into the pipeline for transcription and summarization.
+- **Enhanced Sidebar UI**: Modernized the sidebar with clear sections (Actions/History), improved button styles, and refined list items.
+
+### Fixed
+- **Log Display**: Fixed a race condition where logs were not displaying correctly in the "Show Log" view.
+
 ## [1.0.0] - 2026-01-22
 
 ### Added
