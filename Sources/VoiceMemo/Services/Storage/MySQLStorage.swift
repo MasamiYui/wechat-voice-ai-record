@@ -99,7 +99,9 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
             speaker1_status VARCHAR(50),
             speaker2_status VARCHAR(50),
             speaker1_failed_step VARCHAR(50),
-            speaker2_failed_step VARCHAR(50)
+            speaker2_failed_step VARCHAR(50),
+            original_oss_url TEXT,
+            speaker2_original_oss_url TEXT
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """
         _ = try await pool.withConnection { conn in
@@ -124,6 +126,18 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
         if !existingColumns.contains("speaker2_failed_step") {
             _ = try await pool.withConnection { conn in
                 conn.query("ALTER TABLE meeting_tasks ADD COLUMN speaker2_failed_step VARCHAR(50)")
+            }.get()
+        }
+
+        if !existingColumns.contains("original_oss_url") {
+            _ = try await pool.withConnection { conn in
+                conn.query("ALTER TABLE meeting_tasks ADD COLUMN original_oss_url TEXT")
+            }.get()
+        }
+        
+        if !existingColumns.contains("speaker2_original_oss_url") {
+            _ = try await pool.withConnection { conn in
+                conn.query("ALTER TABLE meeting_tasks ADD COLUMN speaker2_original_oss_url TEXT")
             }.get()
         }
     }
@@ -153,9 +167,9 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
             retry_count, mode, speaker1_audio_path, speaker2_audio_path,
             speaker2_oss_url, speaker2_tingwu_task_id, speaker1_transcript,
             speaker2_transcript, aligned_conversation, speaker1_status, speaker2_status,
-            speaker1_failed_step, speaker2_failed_step
+            speaker1_failed_step, speaker2_failed_step, original_oss_url, speaker2_original_oss_url
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         ) ON DUPLICATE KEY UPDATE
             recording_id=VALUES(recording_id), local_file_path=VALUES(local_file_path),
             oss_url=VALUES(oss_url), tingwu_task_id=VALUES(tingwu_task_id),
@@ -172,7 +186,9 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
             aligned_conversation=VALUES(aligned_conversation), speaker1_status=VALUES(speaker1_status),
             speaker2_status=VALUES(speaker2_status),
             speaker1_failed_step=VALUES(speaker1_failed_step),
-            speaker2_failed_step=VALUES(speaker2_failed_step);
+            speaker2_failed_step=VALUES(speaker2_failed_step),
+            original_oss_url=VALUES(original_oss_url),
+            speaker2_original_oss_url=VALUES(speaker2_original_oss_url);
         """
         
         _ = try await pool.withConnection { conn in
@@ -210,7 +226,9 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
                 task.speaker1Status.map { MySQLData(string: $0.rawValue) } ?? .null,
                 task.speaker2Status.map { MySQLData(string: $0.rawValue) } ?? .null,
                 task.speaker1FailedStep.map { MySQLData(string: $0.rawValue) } ?? .null,
-                task.speaker2FailedStep.map { MySQLData(string: $0.rawValue) } ?? .null
+                task.speaker2FailedStep.map { MySQLData(string: $0.rawValue) } ?? .null,
+                task.originalOssUrl.map { MySQLData(string: $0) } ?? .null,
+                task.speaker2OriginalOssUrl.map { MySQLData(string: $0) } ?? .null
             ]
             return conn.query(sql, binds)
         }.get()
@@ -325,6 +343,9 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
            let s2Failed = MeetingTaskStatus(rawValue: s2FailedRaw) {
             task.speaker2FailedStep = s2Failed
         }
+        
+        task.originalOssUrl = row.column("original_oss_url")?.string
+        task.speaker2OriginalOssUrl = row.column("speaker2_original_oss_url")?.string
         
         return task
     }

@@ -101,6 +101,8 @@ class MeetingPipelineManager: ObservableObject {
         // Reset Task
         var resetTask = task
         resetTask.status = .recorded
+        resetTask.originalOssUrl = nil
+        resetTask.speaker2OriginalOssUrl = nil
         resetTask.ossUrl = nil
         resetTask.speaker2OssUrl = nil
         resetTask.tingwuTaskId = nil
@@ -146,7 +148,19 @@ class MeetingPipelineManager: ObservableObject {
         var nodes: [PipelineNode] = []
         
         // Build chain based on startStep
-        if startStep == .recorded || startStep == .transcoding || startStep == .failed {
+        if startStep == .recorded || startStep == .failed {
+            nodes.append(UploadOriginalNode(targetSpeaker: speaker))
+            nodes.append(TranscodeNode(targetSpeaker: speaker))
+            nodes.append(UploadNode(targetSpeaker: speaker))
+            nodes.append(CreateTaskNode(targetSpeaker: speaker))
+            nodes.append(PollingNode(targetSpeaker: speaker))
+        } else if startStep == .uploadingOriginal {
+            nodes.append(UploadOriginalNode(targetSpeaker: speaker))
+            nodes.append(TranscodeNode(targetSpeaker: speaker))
+            nodes.append(UploadNode(targetSpeaker: speaker))
+            nodes.append(CreateTaskNode(targetSpeaker: speaker))
+            nodes.append(PollingNode(targetSpeaker: speaker))
+        } else if startStep == .uploadedOriginal || startStep == .transcoding {
             nodes.append(TranscodeNode(targetSpeaker: speaker))
             nodes.append(UploadNode(targetSpeaker: speaker))
             nodes.append(CreateTaskNode(targetSpeaker: speaker))
@@ -169,7 +183,19 @@ class MeetingPipelineManager: ObservableObject {
         var nodes: [PipelineNode] = []
         
         // Logic for mixed mode mainly
-        if startStep == .recorded || startStep == .transcoding || startStep == .failed {
+        if startStep == .recorded || startStep == .failed {
+            nodes.append(UploadOriginalNode(targetSpeaker: targetSpeaker))
+            nodes.append(TranscodeNode(targetSpeaker: targetSpeaker))
+            nodes.append(UploadNode(targetSpeaker: targetSpeaker))
+            nodes.append(CreateTaskNode(targetSpeaker: targetSpeaker))
+            nodes.append(PollingNode(targetSpeaker: targetSpeaker))
+        } else if startStep == .uploadingOriginal {
+            nodes.append(UploadOriginalNode(targetSpeaker: targetSpeaker))
+            nodes.append(TranscodeNode(targetSpeaker: targetSpeaker))
+            nodes.append(UploadNode(targetSpeaker: targetSpeaker))
+            nodes.append(CreateTaskNode(targetSpeaker: targetSpeaker))
+            nodes.append(PollingNode(targetSpeaker: targetSpeaker))
+        } else if startStep == .uploadedOriginal || startStep == .transcoding {
             nodes.append(TranscodeNode(targetSpeaker: targetSpeaker))
             nodes.append(UploadNode(targetSpeaker: targetSpeaker))
             nodes.append(CreateTaskNode(targetSpeaker: targetSpeaker))
@@ -374,6 +400,59 @@ protocol PipelineNode {
 }
 
 // MARK: - Concrete Nodes
+
+// 0. Upload Original Node
+class UploadOriginalNode: PipelineNode {
+    let step: MeetingTaskStatus = .uploadingOriginal
+    let targetSpeaker: Int?
+    
+    init(targetSpeaker: Int? = nil) {
+        self.targetSpeaker = targetSpeaker
+    }
+    
+    func run(context: PipelineContext) async throws -> MeetingTask {
+        context.log("UploadOriginalNode start: target=\(targetSpeaker ?? 0)")
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy/MM/dd"
+        let datePath = formatter.string(from: context.task.createdAt)
+        
+        var fileURL: URL
+        var objectKey: String
+        
+        if let spk = targetSpeaker {
+            if spk == 1 {
+                guard let path = context.task.speaker1AudioPath else { throw NSError(domain: "Pipeline", code: 404, userInfo: [NSLocalizedDescriptionKey: "Speaker 1 path missing"]) }
+                fileURL = URL(fileURLWithPath: path)
+                // Use _raw suffix
+                objectKey = "\(context.settings.ossPrefix)\(datePath)/\(context.task.recordingId)/speaker1_raw.m4a"
+            } else {
+                guard let path = context.task.speaker2AudioPath else { throw NSError(domain: "Pipeline", code: 404, userInfo: [NSLocalizedDescriptionKey: "Speaker 2 path missing"]) }
+                fileURL = URL(fileURLWithPath: path)
+                objectKey = "\(context.settings.ossPrefix)\(datePath)/\(context.task.recordingId)/speaker2_raw.m4a"
+            }
+        } else {
+            fileURL = URL(fileURLWithPath: context.task.localFilePath)
+            objectKey = "\(context.settings.ossPrefix)\(datePath)/\(context.task.recordingId)/mixed_raw.m4a"
+        }
+        
+        let url = try await context.ossService.uploadFile(fileURL: fileURL, objectKey: objectKey)
+        context.log("Upload Original success: \(url)")
+        
+        var updatedTask = context.task
+        if let spk = targetSpeaker {
+            if spk == 1 {
+                updatedTask.originalOssUrl = url
+            } else {
+                updatedTask.speaker2OriginalOssUrl = url
+            }
+        } else {
+            updatedTask.originalOssUrl = url
+        }
+        
+        return updatedTask
+    }
+}
 
 // 1. Transcode Node
 class TranscodeNode: PipelineNode {

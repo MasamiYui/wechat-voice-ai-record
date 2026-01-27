@@ -2,6 +2,8 @@ import Foundation
 
 enum MeetingTaskStatus: String, Codable, CaseIterable, Hashable {
     case recorded      // 录音完成
+    case uploadingOriginal // 上传原始文件中
+    case uploadedOriginal  // 原始文件上传完成
     case transcoding   // 转码中
     case transcoded    // 转码完成
     case uploading     // 上传中
@@ -35,6 +37,9 @@ struct MeetingTask: Identifiable, Codable, Hashable, Equatable {
     // Actually, explicit is better.
     var speaker1AudioPath: String? // Local Mic
     var speaker2AudioPath: String? // Remote System
+    
+    var originalOssUrl: String? // Mixed Original OSS URL or Speaker 1 Original OSS URL
+    var speaker2OriginalOssUrl: String? // Speaker 2 Original OSS URL
     
     var ossUrl: String? // Mixed OSS URL or Speaker 1 OSS URL?
     var speaker2OssUrl: String? // Speaker 2 OSS URL

@@ -45,6 +45,8 @@ struct PipelineView: View {
                 
                 ArrowView()
                 
+                stepButton(title: "Upload Raw", icon: "arrow.up.doc", step: .uploadingOriginal)
+                ArrowView()
                 stepButton(title: "Transcode", icon: "waveform", step: .transcoding)
                 ArrowView()
                 stepButton(title: "Upload", icon: "icloud.and.arrow.up", step: .uploading)
@@ -143,6 +145,7 @@ struct PipelineView: View {
     
     private func stepTitle(_ step: MeetingTaskStatus) -> String {
         switch step {
+        case .uploadingOriginal: return "Upload Raw"
         case .transcoding: return "Transcode"
         case .uploading: return "Upload"
         case .created: return "Create Task"
@@ -154,6 +157,7 @@ struct PipelineView: View {
     private func rerun(_ step: MeetingTaskStatus) {
         Task {
             switch step {
+            case .uploadingOriginal: await manager.transcode(force: true) // Reuse start() logic via transcode(force:true) or add explicit uploadOriginal()
             case .transcoding: await manager.transcode(force: true)
             case .uploading: await manager.upload()
             case .created: await manager.createTask()
@@ -173,7 +177,7 @@ struct PipelineView: View {
     }
     
     private func isAfter(_ status: MeetingTaskStatus) -> Bool {
-        let order: [MeetingTaskStatus] = [.recorded, .transcoding, .transcoded, .uploading, .uploaded, .created, .polling, .completed]
+        let order: [MeetingTaskStatus] = [.recorded, .uploadingOriginal, .uploadedOriginal, .transcoding, .transcoded, .uploading, .uploaded, .created, .polling, .completed]
         
         let currentStatus: MeetingTaskStatus
         if manager.task.status == .failed {
@@ -201,8 +205,8 @@ struct PipelineView: View {
     private var actionButton: some View {
         switch manager.task.status {
         case .recorded:
-            Button("Transcode Audio") {
-                Task { await manager.transcode() }
+            Button("Start Processing") {
+                Task { await manager.transcode() } // transcode() calls start() which runs the full pipeline
             }
             .buttonStyle(.borderedProminent)
             
@@ -247,6 +251,12 @@ struct PipelineView: View {
                 .font(.caption)
                 .padding(.top, 4)
             }
+            
+        case .uploadingOriginal:
+            Text("Uploading Original...")
+            
+        case .uploadedOriginal:
+            Text("Original Uploaded")
             
         case .transcoding:
             Text("Transcoding...")
