@@ -34,10 +34,11 @@
 | `id` | TEXT (PK) | 任务唯一标识 (UUID) |
 | `created_at` | DATETIME | 任务创建时间 |
 | `recording_id` | TEXT | 关联录音文件的 ID |
+| `original_file_url` | TEXT | 原始音频 OSS URL (备份) |
 | `local_file_path` | TEXT | 本地原始合成音频路径 |
-| `oss_url` | TEXT | 上传后的公网 URL |
+| `oss_url` | TEXT | 上传后的公网 URL (混合/转码后) |
 | `tingwu_task_id` | TEXT | 听悟任务 ID |
-| `status` | TEXT | 任务状态 (recorded, transcoding, transcoded, uploading, uploaded, created, polling, completed, failed) |
+| `status` | TEXT | 任务状态 (recorded, uploadingOriginal, uploadedOriginal, transcoding, transcoded, uploading, uploaded, created, polling, completed, failed) |
 | `title` | TEXT | 任务标题 |
 
 #### AI 处理结果

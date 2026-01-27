@@ -25,12 +25,14 @@ flowchart TD
     B -->|混合识别| C[现有混合流水线]
     B -->|分离识别| D[分离流水线]
     D --> E[通道映射校验]
-    E --> F1[Speaker1 预处理+识别]
-    E --> F2[Speaker2 预处理+识别]
-    F1 --> G[对齐对话]
-    F2 --> G
-    G --> H[生成纪要]
-    H --> I[保存结果]
+    E --> F1[Speaker1 Upload Raw]
+    E --> F2[Speaker2 Upload Raw]
+    F1 --> G1[Speaker1 预处理+识别]
+    F2 --> G2[Speaker2 预处理+识别]
+    G1 --> H[对齐对话]
+    G2 --> H
+    H --> I[生成纪要]
+    I --> J[保存结果]
 ```
 
 ## 关键需求约束（当前实现）
@@ -94,7 +96,7 @@ flowchart TD
    - 通道映射为固定策略，无需额外配置。
 
 2. 分路识别
-   - speaker1 与 speaker2 两条 pipeline 并行执行（每路独立跑 Transcode → Upload → CreateTask → Poll）。
+   - speaker1 与 speaker2 两条 pipeline 并行执行（每路独立跑 Upload Raw → Transcode → Upload (Mixed) → CreateTask → Poll）。
 
 3. 结果落地
    - 单路成功立即写入对应 transcript。

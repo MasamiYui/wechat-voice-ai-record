@@ -26,12 +26,24 @@
 
 ## 流水线节点 (混合模式)
 
-1. 转码
-2. 上传 OSS
-3. 创建听悟任务
-4. 刷新状态（轮询并拉取结果）
+1. 上传原文件 (Raw) 到 OSS
+2. 转码
+3. 上传转码文件 (Mixed) 到 OSS
+4. 创建听悟任务
+5. 刷新状态（轮询并拉取结果）
 
-`PipelineView` 根据 `MeetingTask.status` 决定展示哪个按钮。
+`PipelineView` 为每个步骤提供手动控制按钮，并高亮显示建议的下一步操作。
+
+## 上传原文件 (Raw)
+
+`UploadOriginalNode` → `OSSService.uploadFile()`：
+
+- 目的：在转码前备份原始高保真音频（如 m4a/wav）。
+- ObjectKey 规则：
+  - `"<ossPrefix><yyyy/MM/dd>/<recordingId>/original.<ext>"`
+- 更新：
+  - `task.originalFileUrl`
+  - `task.status`：`recorded` → `uploadingOriginal` → `uploadedOriginal`
 
 ## 转码
 
@@ -44,7 +56,7 @@
   - `task.localFilePath` 指向转码后的文件
   - `task.status`：`transcoding` → `transcoded`（失败则 `failed`）
 
-## 上传 OSS
+## 上传转码文件 (Mixed) 到 OSS
 
 `UploadNode` → `OSSService.uploadFile()`：
 

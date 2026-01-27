@@ -40,7 +40,9 @@ flowchart LR
     A -->|分离模式| C["MeetingTask"]
     B --> C
     C --> D["MeetingPipelineManager<br/>状态机流水线"]
+    D -->|上传原文件| F1["OSSService<br/>Upload Original"]
     D -->|转码| E["AVAssetExportSession<br/>mixed_48k.m4a"]
+    D -->|上传转码文件| F2["OSSService<br/>Upload Mixed"]
     D -->|持久化| SM["StorageManager<br/>StorageProvider"]
     D -->|配置| S["SettingsStore"]
     S --> K["KeychainHelper<br/>AK/SK"]
@@ -51,11 +53,13 @@ flowchart LR
   end
 
   subgraph Cloud["阿里云"]
-    F["OSSService<br/>PutObject"] --> G["OSS Bucket<br/>公共 URL"]
+    F1 --> G["OSS Bucket<br/>公共 URL"]
+    F2 --> G
     T["TingwuService<br/>CreateTask / GetTaskInfo"] --> R["听悟离线转写<br/>纪要 JSON"]
   end
 
-  D -->|上传| F
+  D -->|上传| F1
+  D -->|上传| F2
   G -->|FileUrl| T
   T -->|结果| D
 ```

@@ -64,9 +64,13 @@ flowchart TD
   G1 -->|Separated Mode| I2[Create MeetingTask]
   I2 --> J1
   
-  J1 --> K[Transcode/Upload/Tingwu/Poll]
+  J1 --> K1[Upload Raw]
+  K1 --> K2[Transcode]
+  K2 --> K3[Upload Mixed]
+  K3 --> K4[Create Tingwu Task]
+  K4 --> K5[Poll Results]
   
-  K --> O[Persist transcript/summary/aligned results]
+  K5 --> O[Persist transcript/summary/aligned results]
   O --> P[ResultView export Markdown]
 ```
 
@@ -75,10 +79,11 @@ flowchart TD
 Defined in `Models/MeetingTask.swift`:
 
 - `recorded`: merged audio saved, task created locally
-- `transcoding` → `transcoded`
-- `uploading` → `uploaded`
-- `created`: used as a transient “creating task” state in pipeline manager
-- `polling` → `completed`
+- `uploadingOriginal` → `uploadedOriginal`: upload original high-fidelity audio to OSS (backup)
+- `transcoding` → `transcoded`: transcode to 48kHz mixed audio
+- `uploading` → `uploaded`: upload transcoded audio to OSS
+- `created`: used as a transient "creating task" state in pipeline manager
+- `polling` → `completed`: poll Tingwu task status and fetch results
 - `failed`: any step error
 
 ## External Dependencies

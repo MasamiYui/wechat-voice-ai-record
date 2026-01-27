@@ -28,7 +28,7 @@ Suitable for single-file audio, such as:
 **Processing Logic**:
 - The system treats this file as `mixed.m4a`.
 - Creates a `Mixed` mode task.
-- Subsequent pipeline: Transcode -> Upload to OSS -> Create Tingwu task -> Poll and fetch results.
+- Subsequent pipeline: Upload Raw -> Transcode -> Upload (Mixed) to OSS -> Create Tingwu task -> Poll and fetch results.
 
 ### 2. Dictation Mode
 
@@ -46,7 +46,7 @@ Suitable for dual-track separated audio, such as:
 **Processing Logic**:
 - The system treats the two files as local and remote tracks respectively.
 - Creates a `Separated` mode task.
-- Subsequent pipeline: Transcode each track -> Upload separately to OSS -> Create Tingwu task per track -> Poll per track -> Merge transcripts for display (simple concatenation).
+- Subsequent pipeline: Upload Raw each track -> Transcode each track -> Upload separately to OSS -> Create Tingwu task per track -> Poll per track -> Merge transcripts for display (simple concatenation).
 
 ## Supported Formats
 
@@ -58,5 +58,5 @@ The application uses `AVFoundation` for processing and supports common audio for
 After import, the task appears in the history list. You can manage it just like a real-time recording task:
 
 1. **View Details**: Click the task to enter the details view.
-2. **Execute Pipeline**: Click "Transcode" -> "Upload" -> "Create Task" -> "Poll" to fetch results.
+2. **Execute Pipeline**: Click "Upload Raw" -> "Transcode" -> "Upload (Mixed)" -> "Create Task" -> "Poll" to fetch results.
 3. **Playback**: You can play the imported audio (multi-track playback control is available in Separated Mode).

@@ -64,9 +64,13 @@ flowchart TD
   G1 -->|分离模式| I2[创建 MeetingTask]
   I2 --> J1
   
-  J1 --> K[转码/上传/听悟/轮询]
+  J1 --> K1[Upload Raw]
+  K1 --> K2[转码]
+  K2 --> K3[Upload Mixed]
+  K3 --> K4[创建听悟任务]
+  K4 --> K5[轮询结果]
   
-  K --> O[保存转写/总结/对齐结果]
+  K5 --> O[保存转写/总结/对齐结果]
   O --> P[ResultView 导出 Markdown]
 ```
 
@@ -75,10 +79,11 @@ flowchart TD
 定义在 `Models/MeetingTask.swift`：
 
 - `recorded`：本地合成完成并创建任务
-- `transcoding` → `transcoded`
-- `uploading` → `uploaded`
-- `created`：流水线中用于“创建任务中”的临时状态
-- `polling` → `completed`
+- `uploadingOriginal` → `uploadedOriginal`：上传原始高保真音频到 OSS（备份）
+- `transcoding` → `transcoded`：转码为 48kHz 混合音频
+- `uploading` → `uploaded`：上传转码后的音频到 OSS
+- `created`：流水线中用于"创建任务中"的临时状态
+- `polling` → `completed`：轮询听悟任务状态并获取结果
 - `failed`：任一步骤失败
 
 ## 依赖

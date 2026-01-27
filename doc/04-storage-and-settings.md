@@ -34,10 +34,11 @@ Table `meeting_tasks` stores the full task state:
 | `id` | TEXT (PK) | Task Unique Identifier (UUID) |
 | `created_at` | DATETIME | Task Creation Time |
 | `recording_id` | TEXT | Associated Recording ID |
+| `original_file_url` | TEXT | OSS URL of Original File (Backup) |
 | `local_file_path` | TEXT | Local Original Merged Audio Path |
-| `oss_url` | TEXT | Public URL after Uploading |
+| `oss_url` | TEXT | Public URL after Uploading (Mixed/Transcoded) |
 | `tingwu_task_id` | TEXT | Tingwu Task ID |
-| `status` | TEXT | Task Status (recorded, transcoding, transcoded, uploading, uploaded, created, polling, completed, failed) |
+| `status` | TEXT | Task Status (recorded, uploadingOriginal, uploadedOriginal, transcoding, transcoded, uploading, uploaded, created, polling, completed, failed) |
 | `title` | TEXT | Task Title |
 
 #### AI Results

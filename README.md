@@ -40,22 +40,26 @@ flowchart LR
     A -->|Separated Mode| C["MeetingTask"]
     B --> C
     C --> D["MeetingPipelineManager<br/>State machine"]
-    D -->|Transcode| E["AVAssetExportSession<br/>mixed_48k.m4a"]
-    D -->|Persist| SM["StorageManager<br/>StorageProvider"]
-    D -->|Config| S["SettingsStore"]
-    S --> K["KeychainHelper<br/>AK/SK"]
-    SM -->|Local| J1["SQLiteStorage<br/>SQLite"]
-    SM -->|Remote| J2["MySQLStorage<br/>mysql-kit"]
-    J1 --> V["SwiftUI Views<br/>SettingsView / PipelineView / ResultView"]
-    J2 --> V
+    D -->|Upload Raw| F1["OSSService<br/>Upload Original"]
+  D -->|Transcode| E["AVAssetExportSession<br/>mixed_48k.m4a"]
+  D -->|Upload| F2["OSSService<br/>Upload Mixed"]
+  D -->|Persist| SM["StorageManager<br/>StorageProvider"]
+  D -->|Config| S["SettingsStore"]
+  S --> K["KeychainHelper<br/>AK/SK"]
+  SM -->|Local| J1["SQLiteStorage<br/>SQLite"]
+  SM -->|Remote| J2["MySQLStorage<br/>mysql-kit"]
+  J1 --> V["SwiftUI Views<br/>SettingsView / PipelineView / ResultView"]
+  J2 --> V
   end
 
   subgraph Cloud["Alibaba Cloud"]
-    F["OSSService<br/>PutObject"] --> G["OSS Bucket<br/>Public URL"]
-    T["TingwuService<br/>CreateTask / GetTaskInfo"] --> R["Tingwu Offline ASR<br/>Minutes JSON"]
+  F1 --> G["OSS Bucket<br/>Public URL"]
+  F2 --> G
+  T["TingwuService<br/>CreateTask / GetTaskInfo"] --> R["Tingwu Offline ASR<br/>Minutes JSON"]
   end
 
-  D -->|Upload| F
+  D -->|Upload| F1
+  D -->|Upload| F2
   G -->|FileUrl| T
   T -->|Result| D
 ```

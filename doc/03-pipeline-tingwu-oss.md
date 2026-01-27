@@ -26,12 +26,24 @@ This keeps the UI-facing API stable (e.g. `transcode()`, `upload()`) while allow
 
 ## Pipeline Steps (Mixed Mode)
 
-1. Transcode
-2. Upload to OSS
-3. Create Tingwu task
-4. Poll status and fetch results
+1. Upload Raw (Original) to OSS
+2. Transcode
+3. Upload (Mixed) to OSS
+4. Create Tingwu task
+5. Poll status and fetch results
 
-`PipelineView` decides which button to show based on `MeetingTask.status`.
+`PipelineView` provides manual control buttons for each step, highlighting the next recommended action.
+
+## Upload Raw (Original)
+
+`UploadOriginalNode` → `OSSService.uploadFile()`:
+
+- Purpose: Backup the original high-fidelity audio (e.g., m4a/wav) before transcoding.
+- Object key format:
+  - `"<ossPrefix><yyyy/MM/dd>/<recordingId>/original.<ext>"`
+- Updates:
+  - `task.originalFileUrl`
+  - `task.status`: `recorded` → `uploadingOriginal` → `uploadedOriginal`
 
 ## Transcode
 
@@ -44,7 +56,7 @@ This keeps the UI-facing API stable (e.g. `transcode()`, `upload()`) while allow
   - `task.localFilePath` to the transcoded file
   - `task.status`: `transcoding` → `transcoded` (or `failed`)
 
-## Upload to OSS
+## Upload (Mixed) to OSS
 
 `UploadNode` → `OSSService.uploadFile()`:
 
