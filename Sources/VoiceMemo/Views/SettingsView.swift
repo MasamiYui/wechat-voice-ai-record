@@ -192,7 +192,6 @@ struct SettingsView: View {
             }
             .tabItem { Text("Storage") }
         }
-        .frame(width: 500, height: 400)
         .padding()
         .sheet(isPresented: $showingLog) {
             VStack {
