@@ -102,7 +102,7 @@ struct ResultView: View {
                     ScrollView {
                         Text(task.rawResponse ?? "No raw response.")
                             .font(.monospaced(.body)())
-                            .padding()
+                            .padding(24)
                             .textSelection(.enabled)
                     }
                 case .pipeline:
@@ -296,7 +296,8 @@ struct ConversationView: View {
                     }
                     Spacer()
                 }
-                .padding()
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
                 .background(Color.blue.opacity(0.1))
                 
                 TranscriptView(text: task.speaker1Transcript ?? "No transcript")
@@ -316,7 +317,8 @@ struct ConversationView: View {
                     }
                     Spacer()
                 }
-                .padding()
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
                 .background(Color.green.opacity(0.1))
                 
                 TranscriptView(text: task.speaker2Transcript ?? "No transcript")
@@ -422,7 +424,7 @@ struct OverviewView: View {
                     .padding(.top, 40)
                 }
             }
-            .padding()
+            .padding(24)
         }
     }
 }
@@ -435,7 +437,7 @@ struct TranscriptView: View {
             Text(text)
                 .font(.body)
                 .lineSpacing(6)
-                .padding()
+                .padding(24)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .textSelection(.enabled)
         }

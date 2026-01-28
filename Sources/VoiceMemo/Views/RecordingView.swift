@@ -7,31 +7,36 @@ struct RecordingView: View {
     var showModeSelection: Bool = true
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 40) {
-                // Header & Status
-                HStack(alignment: .center) {
-                    Text("New Recording")
-                        .font(.system(size: 26, weight: .semibold))
-                    
-                    Spacer()
-                    
-                    // Status Text
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(recorder.isRecording ? Color.red : Color.gray)
-                            .frame(width: 8, height: 8)
-                        Text(recorder.statusMessage)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
+        VStack(spacing: 0) {
+            // Header & Status
+            HStack(alignment: .center) {
+                Text("New Recording")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                
+                Spacer()
+                
+                // Status Text
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(recorder.isRecording ? Color.red : Color.gray)
+                        .frame(width: 8, height: 8)
+                    Text(recorder.statusMessage)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
-                .padding(.horizontal, 40)
-                .padding(.top, 40)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+            .padding(.bottom, 20)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .overlay(Divider(), alignment: .bottom)
 
-                // Configuration Card
-                VStack(spacing: 0) {
-                    // Target Application Section
+            ScrollView {
+                VStack(spacing: 40) {
+                    // Configuration Card
+                    VStack(spacing: 0) {
+                        // Target Application Section
                     HStack {
                         Text("Target Application")
                             .font(.system(size: 14, weight: .semibold))
@@ -133,7 +138,7 @@ struct RecordingView: View {
                 .cornerRadius(16)
                 .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
                 .frame(maxWidth: 600)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, 24)
                 .disabled(recorder.isRecording)
 
                 // Action Button
@@ -202,15 +207,17 @@ struct RecordingView: View {
                             .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
                     }
                     .frame(maxWidth: 800)
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, 24)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
                 
                 Spacer(minLength: 40)
             }
+            .padding(.top, 24)
             .animation(.default, value: recorder.isRecording)
             .animation(.default, value: recorder.recordingMode)
             .animation(.default, value: recorder.latestTask?.id)
+        }
         }
         .background(Color(nsColor: .windowBackgroundColor)) // Light gray background
     }
