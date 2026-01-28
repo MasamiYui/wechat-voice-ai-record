@@ -84,8 +84,8 @@ struct ImportView: View {
                 .padding(.top, 10)
             }
             .padding()
-            .frame(maxWidth: 600)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(maxWidth: 800)
+            .frame(maxWidth: .infinity, alignment: .top)
         }
     }
     

@@ -201,7 +201,7 @@ struct RecordingView: View {
                             .cornerRadius(12)
                             .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
                     }
-                    .frame(maxWidth: 600)
+                    .frame(maxWidth: 800)
                     .padding(.horizontal, 40)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }

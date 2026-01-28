@@ -40,8 +40,8 @@ struct SettingsView: View {
                 }
             }
             .padding()
-            .frame(maxWidth: 600)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(maxWidth: 800)
+            .frame(maxWidth: .infinity, alignment: .top)
         }
         .sheet(isPresented: $showingLog) {
             VStack {
