@@ -108,17 +108,19 @@ struct SettingsView: View {
             GroupBox(label: Text("Audio & Features").bold()) {
                 VStack(spacing: 16) {
                     FormRow(label: "Language") {
+                        Spacer()
                         Picker("", selection: $settings.language) {
                             Text("Chinese (cn)").tag("cn")
                             Text("Mixed (cn_en)").tag("cn_en")
                         }
                         .labelsHidden()
-                        .frame(maxWidth: 200)
+                        .frame(width: 200)
                     }
                     
                     Divider()
                     
                     FormRow(label: "Role Split") {
+                        Spacer()
                         Toggle("Enable Role Split", isOn: $settings.enableRoleSplit)
                             .toggleStyle(.switch)
                             .labelsHidden()
@@ -159,6 +161,7 @@ struct SettingsView: View {
             GroupBox(label: Text("Appearance").bold()) {
                 VStack(spacing: 12) {
                     FormRow(label: "Theme") {
+                        Spacer()
                         Picker("", selection: $settings.appTheme) {
                             Text("Auto").tag(SettingsStore.AppTheme.system)
                             Text("Light").tag(SettingsStore.AppTheme.light)
@@ -166,9 +169,7 @@ struct SettingsView: View {
                         }
                         .labelsHidden()
                         .pickerStyle(.segmented)
-                        .frame(maxWidth: 240)
-                        
-                        Spacer()
+                        .frame(width: 240)
                     }
                 }
                 .padding(8)
@@ -178,6 +179,7 @@ struct SettingsView: View {
             GroupBox(label: Text("Logs").bold()) {
                 VStack(spacing: 12) {
                     FormRow(label: "Settings") {
+                        Spacer()
                         Toggle("Verbose Logging", isOn: $settings.enableVerboseLogging)
                             .toggleStyle(.switch)
                             .labelsHidden()
@@ -198,6 +200,7 @@ struct SettingsView: View {
                     
                     FormRow(label: "Actions") {
                         HStack {
+                            Spacer()
                             Button("Show Log") {
                                 logText = settings.readLogText()
                                 showingLog = true
@@ -302,6 +305,7 @@ struct SettingsView: View {
                 VStack(spacing: 12) {
                     FormRow(label: "OSS Upload") {
                         HStack {
+                            Spacer()
                             Button("Test Upload") {
                                 Task { await testUpload() }
                             }
@@ -384,6 +388,7 @@ struct SettingsView: View {
                     VStack(spacing: 12) {
                         FormRow(label: "Connection") {
                             HStack {
+                                Spacer()
                                 Button("Test Connection") {
                                     Task { await testMySQL() }
                                 }
@@ -399,6 +404,7 @@ struct SettingsView: View {
                         
                         FormRow(label: "Sync") {
                             HStack {
+                                Spacer()
                                 Button("Sync Local to MySQL") {
                                     Task { await storageManager.syncToMySQL() }
                                 }
