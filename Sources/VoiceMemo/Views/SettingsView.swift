@@ -184,16 +184,19 @@ struct SettingsView: View {
                     Toggle("", isOn: $settings.enableSummary)
                         .toggleStyle(.switch)
                         .labelsHidden()
+                    Spacer()
                 }
                 FormRow(label: "Key Points") {
                     Toggle("", isOn: $settings.enableKeyPoints)
                         .toggleStyle(.switch)
                         .labelsHidden()
+                    Spacer()
                 }
                 FormRow(label: "Action Items") {
                     Toggle("", isOn: $settings.enableActionItems)
                         .toggleStyle(.switch)
                         .labelsHidden()
+                    Spacer()
                 }
             }
 
