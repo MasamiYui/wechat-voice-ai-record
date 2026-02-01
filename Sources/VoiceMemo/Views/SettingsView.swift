@@ -12,7 +12,6 @@ struct SettingsView: View {
     @State private var testStatus: String = ""
     @State private var mysqlTestStatus: String = ""
     @State private var showingLog = false
-    @State private var logText = ""
     
     init(settings: SettingsStore, category: SettingsCategory? = nil) {
         self.settings = settings
@@ -44,28 +43,7 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .top)
         }
         .sheet(isPresented: $showingLog) {
-            VStack {
-                HStack {
-                    Text("Verbose Log")
-                        .font(.headline)
-                    Spacer()
-                    Button("Refresh") {
-                        logText = settings.readLogText()
-                    }
-                }
-                .padding()
-                
-                TextEditor(text: .constant(logText.isEmpty ? "No logs found.\n\nTip: Enable 'Verbose Logging' in General settings to see more details." : logText))
-                    .font(.system(.body, design: .monospaced))
-                    .padding()
-                    .background(Color(nsColor: .textBackgroundColor))
-                
-                Button("Close") {
-                    showingLog = false
-                }
-                .padding()
-            }
-            .frame(width: 700, height: 500)
+            LogSheet(settings: settings, isPresented: $showingLog)
         }
     }
     
@@ -238,7 +216,6 @@ struct SettingsView: View {
                 FormRow(label: "Actions") {
                     HStack {
                         Button("Show Log") {
-                            logText = settings.readLogText()
                             showingLog = true
                         }
                         Button("Open Folder") {
@@ -247,7 +224,6 @@ struct SettingsView: View {
                         }
                         Button("Clear Log") {
                             settings.clearLogFile()
-                            logText = ""
                         }
                     }
                 }
@@ -465,6 +441,43 @@ struct SettingsView: View {
             mysqlTestStatus = "Success! Connection established."
         } catch {
             mysqlTestStatus = "Failed: \(error.localizedDescription)"
+        }
+    }
+}
+
+private struct LogSheet: View {
+    @ObservedObject var settings: SettingsStore
+    @Binding var isPresented: Bool
+    @State private var logText = ""
+    
+    var body: some View {
+        VStack {
+            HStack {
+                Text("Verbose Log")
+                    .font(.headline)
+                Spacer()
+                Button("Refresh") {
+                    let content = settings.readLogText()
+                    logText = content.isEmpty ? "No logs found.\n\nTip: Enable 'Verbose Logging' in General settings to see more details." : content
+                }
+            }
+            .padding()
+            
+            TextEditor(text: $logText)
+                .font(.system(.body, design: .monospaced))
+                .padding()
+                .background(Color(nsColor: .textBackgroundColor))
+                .disabled(true)
+            
+            Button("Close") {
+                isPresented = false
+            }
+            .padding()
+        }
+        .frame(width: 700, height: 500)
+        .onAppear {
+            let content = settings.readLogText()
+            logText = content.isEmpty ? "No logs found.\n\nTip: Enable 'Verbose Logging' in General settings to see more details." : content
         }
     }
 }
