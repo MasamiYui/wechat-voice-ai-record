@@ -182,10 +182,40 @@ class SettingsStore: ObservableObject {
     }
     
     func readLogText() -> String {
+        return readLogText(maxLines: 1000, filter: nil)
+    }
+    
+    func readAllLogLines() -> [String] {
+        var lines: [String] = []
+        logQueue.sync {
+            let url = logFileURL()
+            guard let fullContent = try? String(contentsOf: url, encoding: .utf8) else {
+                return
+            }
+            lines = fullContent.components(separatedBy: .newlines).reversed()
+        }
+        return lines
+    }
+    
+    func readLogText(maxLines: Int, filter: String? = nil) -> String {
         var logContent = ""
         logQueue.sync {
             let url = logFileURL()
-            logContent = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+            guard let fullContent = try? String(contentsOf: url, encoding: .utf8) else {
+                return
+            }
+            
+            var lines = fullContent.components(separatedBy: .newlines)
+            
+            if let filter = filter, !filter.isEmpty {
+                lines = lines.filter { $0.localizedCaseInsensitiveContains(filter) }
+            }
+            
+            if lines.count > maxLines {
+                lines = Array(lines.suffix(maxLines))
+            }
+            
+            logContent = lines.joined(separator: "\n")
         }
         return logContent
     }

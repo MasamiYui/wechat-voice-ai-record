@@ -12,7 +12,6 @@ struct SettingsView: View {
     @State private var testStatus: String = ""
     @State private var mysqlTestStatus: String = ""
     @State private var showingLog = false
-    @State private var logText = ""
     
     init(settings: SettingsStore, category: SettingsCategory? = nil) {
         self.settings = settings
@@ -44,28 +43,7 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .top)
         }
         .sheet(isPresented: $showingLog) {
-            VStack {
-                HStack {
-                    Text("Verbose Log")
-                        .font(.headline)
-                    Spacer()
-                    Button("Refresh") {
-                        logText = settings.readLogText()
-                    }
-                }
-                .padding()
-                
-                TextEditor(text: .constant(logText.isEmpty ? "No logs found.\n\nTip: Enable 'Verbose Logging' in General settings to see more details." : logText))
-                    .font(.system(.body, design: .monospaced))
-                    .padding()
-                    .background(Color(nsColor: .textBackgroundColor))
-                
-                Button("Close") {
-                    showingLog = false
-                }
-                .padding()
-            }
-            .frame(width: 700, height: 500)
+            LogSheet(settings: settings, isPresented: $showingLog)
         }
     }
     
@@ -238,7 +216,6 @@ struct SettingsView: View {
                 FormRow(label: "Actions") {
                     HStack {
                         Button("Show Log") {
-                            logText = settings.readLogText()
                             showingLog = true
                         }
                         Button("Open Folder") {
@@ -247,7 +224,6 @@ struct SettingsView: View {
                         }
                         Button("Clear Log") {
                             settings.clearLogFile()
-                            logText = ""
                         }
                     }
                 }
@@ -465,6 +441,105 @@ struct SettingsView: View {
             mysqlTestStatus = "Success! Connection established."
         } catch {
             mysqlTestStatus = "Failed: \(error.localizedDescription)"
+        }
+    }
+}
+
+private struct LogSheet: View {
+    @ObservedObject var settings: SettingsStore
+    @Binding var isPresented: Bool
+    @State private var allLines: [String] = []
+    @State private var displayedLines: [String] = []
+    @State private var isLoading = false
+    
+    // Batch size for pagination
+    private let batchSize = 100
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Verbose Log")
+                    .font(.headline)
+                Spacer()
+                Button("Refresh") {
+                    loadLogs()
+                }
+                .disabled(isLoading)
+            }
+            .padding()
+            
+            ZStack {
+                if isLoading && allLines.isEmpty {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                } else if allLines.isEmpty {
+                    Text("No logs found.\n\nTip: Enable 'Verbose Logging' in General settings to see more details.")
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 4) {
+                            ForEach(0..<displayedLines.count, id: \.self) { index in
+                                Text(displayedLines[index])
+                                    .font(.system(.body, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            
+                            if displayedLines.count < allLines.count {
+                                ProgressView()
+                                    .onAppear {
+                                        loadMoreLogs()
+                                    }
+                                    .padding()
+                            }
+                        }
+                        .padding()
+                    }
+                    .background(Color(nsColor: .textBackgroundColor))
+                }
+            }
+            
+            HStack {
+                Text("Showing newest first - Scroll down for more")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button("Close") {
+                    isPresented = false
+                }
+            }
+            .padding()
+        }
+        .frame(width: 700, height: 500)
+        .onAppear {
+            loadLogs()
+        }
+    }
+    
+    private func loadLogs() {
+        isLoading = true
+        allLines = []
+        displayedLines = []
+        
+        Task {
+            let lines = settings.readAllLogLines()
+            await MainActor.run {
+                allLines = lines
+                loadMoreLogs()
+                isLoading = false
+            }
+        }
+    }
+    
+    private func loadMoreLogs() {
+        let currentCount = displayedLines.count
+        let nextCount = min(currentCount + batchSize, allLines.count)
+        
+        if nextCount > currentCount {
+            let newBatch = allLines[currentCount..<nextCount]
+            displayedLines.append(contentsOf: newBatch)
         }
     }
 }
