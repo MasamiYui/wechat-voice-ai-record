@@ -448,9 +448,12 @@ struct SettingsView: View {
 private struct LogSheet: View {
     @ObservedObject var settings: SettingsStore
     @Binding var isPresented: Bool
-    @State private var logText = ""
-    @State private var searchText = ""
+    @State private var allLines: [String] = []
+    @State private var displayedLines: [String] = []
     @State private var isLoading = false
+    
+    // Batch size for pagination
+    private let batchSize = 100
     
     var body: some View {
         VStack(spacing: 0) {
@@ -465,43 +468,41 @@ private struct LogSheet: View {
             }
             .padding()
             
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                TextField("Search logs...", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .onSubmit {
-                        loadLogs()
-                    }
-                if !searchText.isEmpty {
-                    Button(action: {
-                        searchText = ""
-                        loadLogs()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-            
             ZStack {
-                if isLoading {
+                if isLoading && allLines.isEmpty {
                     ProgressView()
                         .scaleEffect(1.5)
-                } else {
-                    TextEditor(text: $logText)
-                        .font(.system(.body, design: .monospaced))
+                } else if allLines.isEmpty {
+                    Text("No logs found.\n\nTip: Enable 'Verbose Logging' in General settings to see more details.")
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
                         .padding()
-                        .background(Color(nsColor: .textBackgroundColor))
-                        .disabled(true)
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 4) {
+                            ForEach(0..<displayedLines.count, id: \.self) { index in
+                                Text(displayedLines[index])
+                                    .font(.system(.body, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            
+                            if displayedLines.count < allLines.count {
+                                ProgressView()
+                                    .onAppear {
+                                        loadMoreLogs()
+                                    }
+                                    .padding()
+                            }
+                        }
+                        .padding()
+                    }
+                    .background(Color(nsColor: .textBackgroundColor))
                 }
             }
             
             HStack {
-                Text("Showing last 1000 lines")
+                Text("Showing newest first - Scroll down for more")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -519,12 +520,26 @@ private struct LogSheet: View {
     
     private func loadLogs() {
         isLoading = true
+        allLines = []
+        displayedLines = []
+        
         Task {
-            let content = settings.readLogText(maxLines: 1000, filter: searchText.isEmpty ? nil : searchText)
+            let lines = settings.readAllLogLines()
             await MainActor.run {
-                logText = content.isEmpty ? "No logs found.\n\nTip: Enable 'Verbose Logging' in General settings to see more details." : content
+                allLines = lines
+                loadMoreLogs()
                 isLoading = false
             }
+        }
+    }
+    
+    private func loadMoreLogs() {
+        let currentCount = displayedLines.count
+        let nextCount = min(currentCount + batchSize, allLines.count)
+        
+        if nextCount > currentCount {
+            let newBatch = allLines[currentCount..<nextCount]
+            displayedLines.append(contentsOf: newBatch)
         }
     }
 }

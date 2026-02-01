@@ -185,6 +185,18 @@ class SettingsStore: ObservableObject {
         return readLogText(maxLines: 1000, filter: nil)
     }
     
+    func readAllLogLines() -> [String] {
+        var lines: [String] = []
+        logQueue.sync {
+            let url = logFileURL()
+            guard let fullContent = try? String(contentsOf: url, encoding: .utf8) else {
+                return
+            }
+            lines = fullContent.components(separatedBy: .newlines).reversed()
+        }
+        return lines
+    }
+    
     func readLogText(maxLines: Int, filter: String? = nil) -> String {
         var logContent = ""
         logQueue.sync {
