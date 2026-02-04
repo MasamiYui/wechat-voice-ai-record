@@ -12,6 +12,8 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
     private var pool: EventLoopGroupConnectionPool<MySQLConnectionSource>?
     private var isShutdown = false
     
+    var logger: ((String) -> Void)?
+    
     struct Config: Sendable {
         let host: String
         let port: Int
@@ -25,6 +27,11 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
     init(config: Config) {
         self.config = config
         setupPool()
+    }
+    
+    private func log(_ message: String) {
+        print(message)
+        logger?(message)
     }
 
     deinit {
@@ -64,6 +71,9 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
         guard let pool = pool else {
             throw StorageError.poolNotInitialized
         }
+        
+        log("MySQLStorage createTableIfNeeded: Creating table if needed")
+        
         let sql = """
         CREATE TABLE IF NOT EXISTS meeting_tasks (
             id VARCHAR(36) PRIMARY KEY,
@@ -75,7 +85,7 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
             status VARCHAR(50) NOT NULL,
             title TEXT NOT NULL,
             raw_response TEXT,
-            transcript TEXT,
+            transcript LONGTEXT,
             summary TEXT,
             key_points TEXT,
             action_items TEXT,
@@ -93,15 +103,19 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
             speaker2_audio_path TEXT,
             speaker2_oss_url TEXT,
             speaker2_tingwu_task_id VARCHAR(255),
-            speaker1_transcript TEXT,
-            speaker2_transcript TEXT,
-            aligned_conversation TEXT,
+            speaker1_transcript LONGTEXT,
+            speaker2_transcript LONGTEXT,
+            aligned_conversation LONGTEXT,
             speaker1_status VARCHAR(50),
             speaker2_status VARCHAR(50),
             speaker1_failed_step VARCHAR(50),
             speaker2_failed_step VARCHAR(50),
             original_oss_url TEXT,
-            speaker2_original_oss_url TEXT
+            speaker2_original_oss_url TEXT,
+            overview_data LONGTEXT,
+            transcript_data LONGTEXT,
+            conversation_data LONGTEXT,
+            raw_data LONGTEXT
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """
         _ = try await pool.withConnection { conn in
@@ -117,7 +131,10 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
             }
         }.get()
         
+        log("MySQLStorage createTableIfNeeded: Existing columns: \(existingColumns)")
+        
         if !existingColumns.contains("speaker1_failed_step") {
+            log("MySQLStorage createTableIfNeeded: Adding speaker1_failed_step column")
             _ = try await pool.withConnection { conn in
                 conn.query("ALTER TABLE meeting_tasks ADD COLUMN speaker1_failed_step VARCHAR(50)")
             }.get()
@@ -140,6 +157,72 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
                 conn.query("ALTER TABLE meeting_tasks ADD COLUMN speaker2_original_oss_url TEXT")
             }.get()
         }
+        
+        // Migration for Complete Poll Results
+        if !existingColumns.contains("overview_data") {
+            log("MySQLStorage createTableIfNeeded: Adding overview_data column")
+            _ = try await pool.withConnection { conn in
+                conn.query("ALTER TABLE meeting_tasks ADD COLUMN overview_data TEXT")
+            }.get()
+        }
+        
+        if !existingColumns.contains("transcript_data") {
+            log("MySQLStorage createTableIfNeeded: Adding transcript_data column")
+            _ = try await pool.withConnection { conn in
+                conn.query("ALTER TABLE meeting_tasks ADD COLUMN transcript_data TEXT")
+            }.get()
+        }
+        
+        if !existingColumns.contains("conversation_data") {
+            log("MySQLStorage createTableIfNeeded: Adding conversation_data column")
+            _ = try await pool.withConnection { conn in
+                conn.query("ALTER TABLE meeting_tasks ADD COLUMN conversation_data TEXT")
+            }.get()
+        }
+        
+        if !existingColumns.contains("raw_data") {
+            log("MySQLStorage createTableIfNeeded: Adding raw_data column")
+            _ = try await pool.withConnection { conn in
+                conn.query("ALTER TABLE meeting_tasks ADD COLUMN raw_data TEXT")
+            }.get()
+        }
+        
+        log("MySQLStorage createTableIfNeeded: Table creation/migration completed")
+        
+        // Upgrade existing text columns to LONGTEXT to support large data
+        _ = try? await pool.withConnection { conn in
+            conn.query("ALTER TABLE meeting_tasks MODIFY COLUMN transcript LONGTEXT")
+        }.get()
+        
+        _ = try? await pool.withConnection { conn in
+            conn.query("ALTER TABLE meeting_tasks MODIFY COLUMN overview_data LONGTEXT")
+        }.get()
+        
+        _ = try? await pool.withConnection { conn in
+            conn.query("ALTER TABLE meeting_tasks MODIFY COLUMN transcript_data LONGTEXT")
+        }.get()
+        
+        _ = try? await pool.withConnection { conn in
+            conn.query("ALTER TABLE meeting_tasks MODIFY COLUMN conversation_data LONGTEXT")
+        }.get()
+        
+        _ = try? await pool.withConnection { conn in
+            conn.query("ALTER TABLE meeting_tasks MODIFY COLUMN raw_data LONGTEXT")
+        }.get()
+        
+        _ = try? await pool.withConnection { conn in
+            conn.query("ALTER TABLE meeting_tasks MODIFY COLUMN speaker1_transcript LONGTEXT")
+        }.get()
+        
+        _ = try? await pool.withConnection { conn in
+            conn.query("ALTER TABLE meeting_tasks MODIFY COLUMN speaker2_transcript LONGTEXT")
+        }.get()
+        
+        _ = try? await pool.withConnection { conn in
+            conn.query("ALTER TABLE meeting_tasks MODIFY COLUMN aligned_conversation LONGTEXT")
+        }.get()
+        
+        log("MySQLStorage createTableIfNeeded: Column upgrade completed")
     }
     
     func fetchTasks() async throws -> [MeetingTask] {
@@ -158,6 +241,12 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
             throw StorageError.poolNotInitialized
         }
         
+        log("MySQLStorage saveTask: Saving task \(task.id)")
+        log("MySQLStorage saveTask: overviewData = \(task.overviewData?.prefix(100) ?? "nil")")
+        log("MySQLStorage saveTask: transcriptData = \(task.transcriptData?.prefix(100) ?? "nil")")
+        log("MySQLStorage saveTask: conversationData = \(task.conversationData?.prefix(100) ?? "nil")")
+        log("MySQLStorage saveTask: rawData = \(task.rawData?.prefix(100) ?? "nil")")
+        
         let sql = """
         INSERT INTO meeting_tasks (
             id, created_at, recording_id, local_file_path, oss_url, tingwu_task_id,
@@ -167,9 +256,10 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
             retry_count, mode, speaker1_audio_path, speaker2_audio_path,
             speaker2_oss_url, speaker2_tingwu_task_id, speaker1_transcript,
             speaker2_transcript, aligned_conversation, speaker1_status, speaker2_status,
-            speaker1_failed_step, speaker2_failed_step, original_oss_url, speaker2_original_oss_url
+            speaker1_failed_step, speaker2_failed_step, original_oss_url, speaker2_original_oss_url,
+            overview_data, transcript_data, conversation_data, raw_data
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         ) ON DUPLICATE KEY UPDATE
             recording_id=VALUES(recording_id), local_file_path=VALUES(local_file_path),
             oss_url=VALUES(oss_url), tingwu_task_id=VALUES(tingwu_task_id),
@@ -188,7 +278,9 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
             speaker1_failed_step=VALUES(speaker1_failed_step),
             speaker2_failed_step=VALUES(speaker2_failed_step),
             original_oss_url=VALUES(original_oss_url),
-            speaker2_original_oss_url=VALUES(speaker2_original_oss_url);
+            speaker2_original_oss_url=VALUES(speaker2_original_oss_url),
+            overview_data=VALUES(overview_data), transcript_data=VALUES(transcript_data),
+            conversation_data=VALUES(conversation_data), raw_data=VALUES(raw_data);
         """
         
         _ = try await pool.withConnection { conn in
@@ -228,7 +320,11 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
                 task.speaker1FailedStep.map { MySQLData(string: $0.rawValue) } ?? .null,
                 task.speaker2FailedStep.map { MySQLData(string: $0.rawValue) } ?? .null,
                 task.originalOssUrl.map { MySQLData(string: $0) } ?? .null,
-                task.speaker2OriginalOssUrl.map { MySQLData(string: $0) } ?? .null
+                task.speaker2OriginalOssUrl.map { MySQLData(string: $0) } ?? .null,
+                task.overviewData.map { MySQLData(string: $0) } ?? .null,
+                task.transcriptData.map { MySQLData(string: $0) } ?? .null,
+                task.conversationData.map { MySQLData(string: $0) } ?? .null,
+                task.rawData.map { MySQLData(string: $0) } ?? .null
             ]
             return conn.query(sql, binds)
         }.get()
@@ -346,6 +442,10 @@ final class MySQLStorage: StorageProvider, @unchecked Sendable {
         
         task.originalOssUrl = row.column("original_oss_url")?.string
         task.speaker2OriginalOssUrl = row.column("speaker2_original_oss_url")?.string
+        task.overviewData = row.column("overview_data")?.string
+        task.transcriptData = row.column("transcript_data")?.string
+        task.conversationData = row.column("conversation_data")?.string
+        task.rawData = row.column("raw_data")?.string
         
         return task
     }

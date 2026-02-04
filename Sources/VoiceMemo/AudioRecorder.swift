@@ -19,6 +19,8 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
         return nil
     }
     
+    private var notificationObserver: NSObjectProtocol?
+    
     private var settings: SettingsStore
     private var recordingId: String?
     private var recordingStartTime: Date?
@@ -42,6 +44,22 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
     init(settings: SettingsStore) {
         self.settings = settings
         super.init()
+        
+        // Listen for task updates to refresh latestTask
+        notificationObserver = NotificationCenter.default.addObserver(
+            forName: .meetingTaskDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            if let taskId = notification.object as? UUID,
+               let currentTask = self.latestTask,
+               currentTask.id == taskId,
+               let updatedTask = notification.userInfo?[MeetingTask.userInfoTaskKey] as? MeetingTask {
+                self.latestTask = updatedTask
+            }
+        }
+        
         Task {
             await refreshAvailableApps()
         }

@@ -70,8 +70,14 @@ class StorageManager: ObservableObject {
             database: settings.mysqlDatabase
         )
         mysqlProvider = MySQLStorage(config: config)
+        mysqlProvider?.logger = { [weak self] msg in
+            self?.settingsStore?.log(msg)
+        }
         if settings.storageType == .mysql {
             currentProvider = mysqlProvider!
+            Task {
+                try? await mysqlProvider?.createTableIfNeeded()
+            }
         }
     }
     
@@ -88,6 +94,9 @@ class StorageManager: ObservableObject {
             database: settings.mysqlDatabase
         )
         let provider = MySQLStorage(config: config)
+        provider.logger = { [weak self] msg in
+            self?.settingsStore?.log(msg)
+        }
         defer { provider.shutdown() }
         // Try to create table to test connection and permissions
         try await provider.createTableIfNeeded()

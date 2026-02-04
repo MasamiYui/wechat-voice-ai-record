@@ -49,6 +49,12 @@ class SQLiteStorage: StorageProvider {
     private let originalOssUrl = Expression<String?>("original_oss_url")
     private let speaker2OriginalOssUrl = Expression<String?>("speaker2_original_oss_url")
     
+    // New Fields for Complete Poll Results
+    private let overviewData = Expression<String?>("overview_data")
+    private let transcriptData = Expression<String?>("transcript_data") 
+    private let conversationData = Expression<String?>("conversation_data")
+    private let rawData = Expression<String?>("raw_data")
+    
     init() {
         setupDatabase()
     }
@@ -134,6 +140,10 @@ class SQLiteStorage: StorageProvider {
                 t.column(speaker2FailedStep)
                 t.column(originalOssUrl)
                 t.column(speaker2OriginalOssUrl)
+                t.column(overviewData)
+                t.column(transcriptData)
+                t.column(conversationData)
+                t.column(rawData)
             })
             
             // Migration for existing tables - only add if they don't exist
@@ -163,6 +173,12 @@ class SQLiteStorage: StorageProvider {
             if !existingColumns.contains("speaker2_failed_step") { _ = try? db.run(tasks.addColumn(speaker2FailedStep)) }
             if !existingColumns.contains("original_oss_url") { _ = try? db.run(tasks.addColumn(originalOssUrl)) }
             if !existingColumns.contains("speaker2_original_oss_url") { _ = try? db.run(tasks.addColumn(speaker2OriginalOssUrl)) }
+            
+            // Migration for Complete Poll Results
+            if !existingColumns.contains("overview_data") { _ = try? db.run(tasks.addColumn(overviewData)) }
+            if !existingColumns.contains("transcript_data") { _ = try? db.run(tasks.addColumn(transcriptData)) }
+            if !existingColumns.contains("conversation_data") { _ = try? db.run(tasks.addColumn(conversationData)) }
+            if !existingColumns.contains("raw_data") { _ = try? db.run(tasks.addColumn(rawData)) }
         } catch {
             print("Create table error: \(error)")
         }
@@ -224,7 +240,11 @@ class SQLiteStorage: StorageProvider {
             speaker1FailedStep <- task.speaker1FailedStep?.rawValue,
             speaker2FailedStep <- task.speaker2FailedStep?.rawValue,
             originalOssUrl <- task.originalOssUrl,
-            speaker2OriginalOssUrl <- task.speaker2OriginalOssUrl
+            speaker2OriginalOssUrl <- task.speaker2OriginalOssUrl,
+            overviewData <- task.overviewData,
+            transcriptData <- task.transcriptData,
+            conversationData <- task.conversationData,
+            rawData <- task.rawData
         )
         try db.run(insert)
     }
@@ -282,6 +302,10 @@ class SQLiteStorage: StorageProvider {
             task.alignedConversation = row[alignedConversation]
             task.originalOssUrl = row[originalOssUrl]
             task.speaker2OriginalOssUrl = row[speaker2OriginalOssUrl]
+            task.overviewData = row[overviewData]
+            task.transcriptData = row[transcriptData]
+            task.conversationData = row[conversationData]
+            task.rawData = row[rawData]
             
             if let s1StatusRaw = row[speaker1Status], let s1StatusEnum = MeetingTaskStatus.from(rawValue: s1StatusRaw) {
                 task.speaker1Status = s1StatusEnum
@@ -369,6 +393,10 @@ class SQLiteStorage: StorageProvider {
         task.alignedConversation = row[alignedConversation]
         task.originalOssUrl = row[originalOssUrl]
         task.speaker2OriginalOssUrl = row[speaker2OriginalOssUrl]
+        task.overviewData = row[overviewData]
+        task.transcriptData = row[transcriptData]
+        task.conversationData = row[conversationData]
+        task.rawData = row[rawData]
         
         if let s1StatusRaw = row[speaker1Status], let s1StatusEnum = MeetingTaskStatus.from(rawValue: s1StatusRaw) {
             task.speaker1Status = s1StatusEnum

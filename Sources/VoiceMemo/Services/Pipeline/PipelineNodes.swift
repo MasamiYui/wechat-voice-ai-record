@@ -198,15 +198,23 @@ class PollingNode: PipelineNode {
         
         if status == "SUCCESS" || status == "COMPLETED" {
             if let result = data?["Result"] as? [String: Any] {
-                // Parse Transcript
+                // Parse all data types for complete storage
                 let transcriptText = await fetchTranscript(from: result, service: services.tingwuService)
-                
-                // Parse Summary
                 let summaryText = await fetchSummary(from: result, service: services.tingwuService)
+                
+                // Fetch complete data for database storage
+                let overviewData = await fetchOverviewData(from: result, service: services.tingwuService)
+                let transcriptData = await fetchTranscriptData(from: result, service: services.tingwuService)
+                let conversationData = await fetchConversationData(from: result, service: services.tingwuService)
+                let rawData = await fetchRawData(from: data, service: services.tingwuService)
                 
                 // 4. Write Output
                 board.updateChannel(channelId) {
                     $0.transcript = TingwuResult(text: transcriptText, summary: summaryText)
+                    $0.overviewData = overviewData
+                    $0.transcriptData = transcriptData
+                    $0.conversationData = conversationData
+                    $0.rawData = rawData
                 }
             }
         } else if status == "FAILED" {
@@ -250,4 +258,55 @@ class PollingNode: PipelineNode {
     }
     
     // buildTranscriptText removed, using TranscriptParser instead
+    
+    // New helper methods for complete data storage
+    private func fetchOverviewData(from result: [String: Any], service: TingwuService) async -> String? {
+        // Try to fetch summarization data
+        if let summarizationUrl = result["Summarization"] as? String {
+            if let data = try? await service.fetchJSON(url: summarizationUrl) {
+                if let jsonData = try? JSONSerialization.data(withJSONObject: data),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    return jsonString
+                }
+            }
+        }
+        return nil
+    }
+    
+    private func fetchTranscriptData(from result: [String: Any], service: TingwuService) async -> String? {
+        // Try to fetch transcription data
+        if let transcriptionUrl = result["Transcription"] as? String {
+            if let data = try? await service.fetchJSON(url: transcriptionUrl) {
+                if let jsonData = try? JSONSerialization.data(withJSONObject: data),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    return jsonString
+                }
+            }
+        }
+        return nil
+    }
+    
+    private func fetchConversationData(from result: [String: Any], service: TingwuService) async -> String? {
+        // Try to fetch conversation data if available
+        if let conversationUrl = result["Conversation"] as? String {
+            if let data = try? await service.fetchJSON(url: conversationUrl) {
+                if let jsonData = try? JSONSerialization.data(withJSONObject: data),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    return jsonString
+                }
+            }
+        }
+        return nil
+    }
+    
+    private func fetchRawData(from data: [String: Any]?, service: TingwuService) async -> String? {
+        // Store the complete raw response data
+        if let data = data {
+            if let jsonData = try? JSONSerialization.data(withJSONObject: data),
+               let jsonString = String(data: jsonData, encoding: .utf8) {
+                return jsonString
+            }
+        }
+        return nil
+    }
 }

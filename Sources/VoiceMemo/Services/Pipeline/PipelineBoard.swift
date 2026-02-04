@@ -57,7 +57,13 @@ struct ChannelData {
     // 4. 最终产物
     var transcript: TingwuResult?     // 解析后的结构化结果
     
-    // 5. 错误追踪 (用于单路重试)
+    // 5. 完整轮询结果 (用于数据库存储)
+    var overviewData: String?     // 概览数据 (JSON base64编码)
+    var transcriptData: String?   // 转录数据 (JSON base64编码)
+    var conversationData: String? // 对话数据 (JSON base64编码)
+    var rawData: String?          // 原始数据 (JSON base64编码)
+    
+    // 6. 错误追踪 (用于单路重试)
     var lastError: String?
     var failedStep: MeetingTaskStatus?
 }

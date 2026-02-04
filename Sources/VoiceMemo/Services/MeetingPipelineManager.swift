@@ -387,6 +387,11 @@ class MeetingPipelineManager: ObservableObject {
                 self.task.transcript = res.text
                 if let sum = res.summary { self.task.summary = sum }
             }
+            // Save complete poll results to database
+            if let overview = channel.overviewData { self.task.overviewData = overview }
+            if let transcript = channel.transcriptData { self.task.transcriptData = transcript }
+            if let conversation = channel.conversationData { self.task.conversationData = conversation }
+            if let raw = channel.rawData { self.task.rawData = raw }
         case 1:
             if let url = channel.rawAudioOssURL { self.task.originalOssUrl = url }
             if let path = channel.processedAudioPath { self.task.speaker1AudioPath = path }
@@ -548,10 +553,16 @@ class MeetingPipelineManager: ObservableObject {
     
     private func save() async {
         let snapshot = await MainActor.run { self.task }
-        print("MeetingPipelineManager save() called with task: \(snapshot.id), status: \(snapshot.status)")
-        try? await StorageManager.shared.currentProvider.saveTask(snapshot)
-        print("MeetingPipelineManager posting notification for task: \(snapshot.id)")
+        let providerType = String(describing: type(of: StorageManager.shared.currentProvider))
+        settings.log("MeetingPipelineManager save() called. TaskID: \(snapshot.id), Status: \(snapshot.status.rawValue), Provider: \(providerType)")
+        
+        do {
+            try await StorageManager.shared.currentProvider.saveTask(snapshot)
+            settings.log("MeetingPipelineManager save() success")
+        } catch {
+            settings.log("MeetingPipelineManager save() failed: \(error)")
+        }
+        
         NotificationCenter.default.post(name: .meetingTaskDidUpdate, object: snapshot.id, userInfo: [MeetingTask.userInfoTaskKey: snapshot])
-        print("MeetingPipelineManager notification posted")
     }
 }

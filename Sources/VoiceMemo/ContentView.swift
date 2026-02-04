@@ -22,6 +22,12 @@ struct ContentView: View {
         _recorder = StateObject(wrappedValue: AudioRecorder(settings: settings))
     }
     
+    // Method to navigate to a task in history
+    func navigateToTask(_ task: MeetingTask) {
+        selectedSidebarItem = .history
+        selectedTask = task
+    }
+    
     var body: some View {
         NavigationSplitView {
             List(SidebarItem.allCases, selection: $selectedSidebarItem) { item in
@@ -93,7 +99,11 @@ struct ContentView: View {
                 switch item {
                 case .recording:
                     if let mode = selectedRecordingMode {
-                        RecordingView(recorder: recorder, settings: settings, showModeSelection: false)
+                        RecordingView(recorder: recorder, settings: settings, showModeSelection: false, onViewResult: {
+                            if let task = recorder.latestTask {
+                                navigateToTask(task)
+                            }
+                        })
                             .onAppear {
                                 recorder.recordingMode = mode.mode
                             }

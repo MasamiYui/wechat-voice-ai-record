@@ -5,6 +5,7 @@ struct RecordingView: View {
     @ObservedObject var recorder: AudioRecorder
     @ObservedObject var settings: SettingsStore
     var showModeSelection: Bool = true
+    var onViewResult: (() -> Void)?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -199,7 +200,7 @@ struct RecordingView: View {
                             StatusBadge(status: task.status)
                         }
                         
-                        PipelineView(task: task, settings: settings)
+                        PipelineView(task: task, settings: settings, onViewResult: onViewResult)
                             .id(task.id)
                             .padding(16)
                             .background(Color(nsColor: .textBackgroundColor))

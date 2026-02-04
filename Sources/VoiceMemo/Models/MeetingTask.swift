@@ -132,6 +132,12 @@ class MeetingTask: Identifiable, ObservableObject, Hashable, Codable {
     var failedStep: MeetingTaskStatus?
     var retryCount: Int = 0
     
+    // Complete Poll Results Storage
+    var overviewData: String?
+    var transcriptData: String?
+    var conversationData: String?
+    var rawData: String?
+    
     init(recordingId: String, localFilePath: String, title: String) {
         self.recordingId = recordingId
         self.localFilePath = localFilePath
