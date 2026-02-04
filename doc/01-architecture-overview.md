@@ -14,7 +14,7 @@ This document explains how the app is structured end-to-end: UI, recording, pipe
 - `Sources/VoiceMemo/`
   - `VoiceMemoApp.swift`: app entry and AppDelegate activation policy.
   - `ContentView.swift`: app shell, navigation, and state wiring.
-  - `AudioRecorder.swift`: dual-track audio capture and local merge (supports both mixed and separated modes).
+  - `AudioRecorder.swift`: dual-track audio capture and local merge.
   - `Models/MeetingTask.swift`: persisted task model and status state machine.
   - `Services/`
     - `SettingsStore.swift`: user configuration, theme, feature toggles, logging.
@@ -57,16 +57,12 @@ flowchart TD
   C --> E[remote.m4a]
   D --> F[local.m4a]
   
-  E --> G1{Recognition Mode}
-  F --> G1
+  E --> H1[Merge with AVMutableComposition]
+  F --> H1
   
-  G1 -->|Mixed Mode| H1[Merge with AVMutableComposition]
   H1 --> H2[mixed.m4a]
   H2 --> I1[Create MeetingTask]
   I1 --> J1[MeetingPipelineManager]
-  
-  G1 -->|Separated Mode| I2[Create MeetingTask]
-  I2 --> J1
   
   J1 --> K1[Upload Raw]
   K1 --> K2[Transcode]

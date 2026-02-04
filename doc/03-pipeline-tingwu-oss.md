@@ -18,7 +18,7 @@ Document the manual pipeline executed from the UI after a recording is saved (or
 
 The app uses a single pipeline manager:
 
-- **`MeetingPipelineManager`**: Handles both "Mixed" and "Separated" mode tasks. Mode-specific behavior is selected via `MeetingTask.mode` (e.g. upload/create/poll for one file vs two files).
+- **`MeetingPipelineManager`**: Handles the pipeline tasks.
 
 Internally, `MeetingPipelineManager` uses a **PipelineBoard (Blackboard Pattern)** to orchestrate nodes:
 
@@ -29,7 +29,7 @@ Internally, `MeetingPipelineManager` uses a **PipelineBoard (Blackboard Pattern)
 
 This keeps the UI-facing API stable (e.g. `transcode()`, `upload()`) while allowing the implementation to be composed and resumed from any step.
 
-## Pipeline Steps (Mixed Mode)
+## Pipeline Steps
 
 1. Upload Raw (Original) to OSS
 2. Transcode
@@ -118,32 +118,6 @@ On success:
 - While running:
   - The node throws a retryable error (`"Task running"`); the manager retries with a 2s delay.
   - Current retry policy: max 60 attempts (about 2 minutes).
-
-## Separated Mode (Dual-Speaker)
-
-In `MeetingTask.mode == separated`, the manager runs two single-track pipelines concurrently:
-
-- Speaker 1 (Local mic): `speaker1AudioPath` → `ossUrl` → `tingwuTaskId` → `speaker1Transcript`
-- Speaker 2 (Remote system audio): `speaker2AudioPath` → `speaker2OssUrl` → `speaker2TingwuTaskId` → `speaker2Transcript`
-
-Each track uses the same node chain with a `targetSpeaker` argument. Upload object keys become:
-
-- `"<ossPrefix><yyyy/MM/dd>/<recordingId>/speaker1.m4a"`
-- `"<ossPrefix><yyyy/MM/dd>/<recordingId>/speaker2.m4a"`
-
-### Alignment (Current)
-
-After both tracks finish (or partially finish), `MeetingPipelineManager.tryAlign()` currently produces a simple merged `task.transcript` by concatenating speaker transcripts with headers. `alignedConversation` remains reserved for future timestamp alignment.
-
-### Failure Tracking and Retry
-
-- Mixed mode uses `task.failedStep` and `task.lastError`.
-- Separated mode uses per-speaker fields:
-  - `task.speaker1Status` / `task.speaker2Status`
-  - `task.speaker1FailedStep` / `task.speaker2FailedStep`
-- UI retry entry points:
-  - `MeetingPipelineManager.retry()` retries from the recorded failure step.
-  - `MeetingPipelineManager.retry(speaker:)` retries only a specific speaker track.
 
 ## Tingwu Signing (ACS3-HMAC-SHA256)
 

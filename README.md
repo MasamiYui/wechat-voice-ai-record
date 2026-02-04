@@ -23,13 +23,6 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 See [Security and Audit Notes](doc/09-security-and-audit.md).
 
-## Recognition Modes
-
-The app now supports two recognition modes to cater to different meeting scenarios:
-
-- **Mixed Mode (Default)**: Combines all audio sources into a single track. This is suitable for general recordings and simpler transcription needs.
-- **Dual-Speaker Separated Mode**: Specifically designed for 1-on-1 calls. It treats System Audio as Speaker 2 (Remote) and Microphone as Speaker 1 (Local). Each track is recognized independently, providing better speaker identification and alignment in the final minutes.
-
 ## Requirements
 
 - **OS**: macOS 13.0 (Ventura) or later.
@@ -41,9 +34,8 @@ The app now supports two recognition modes to cater to different meeting scenari
 ```mermaid
 flowchart LR
   subgraph Local["Local (macOS app)"]
-    A["AudioRecorder<br/>ScreenCaptureKit + AVFoundation"] -->|Mixed Mode| B["Merge Tracks<br/>remote + mic"]
-    A -->|Separated Mode| C["MeetingTask"]
-    B --> C
+    A["AudioRecorder<br/>ScreenCaptureKit + AVFoundation"] --> B["Merge Tracks<br/>remote + mic"]
+    B --> C["MeetingTask"]
     C --> D["MeetingPipelineManager<br/>State machine"]
     D -->|Upload Raw| F1["OSSService<br/>Upload Original"]
   D -->|Transcode| E["AVAssetExportSession<br/>mixed_48k.m4a"]
@@ -130,7 +122,7 @@ After a recording completes, the latest task appears in the pipeline UI. Trigger
 
 Use the sidebar action **Import Audio** to create a meeting task from an existing audio file, then run the same pipeline steps as above.
 
-For detailed instructions on import modes (Meeting vs Dictation), please refer to the [Audio Import Guide](doc/08-import-guide.md).
+For detailed import instructions, please refer to the [Audio Import Guide](doc/08-import-guide.md).
 
 ## Development
 

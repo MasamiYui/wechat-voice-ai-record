@@ -14,7 +14,7 @@
 - `Sources/VoiceMemo/`
   - `VoiceMemoApp.swift`：应用入口与 AppDelegate（激活策略）。
   - `ContentView.swift`：应用骨架、导航与状态装配。
-  - `AudioRecorder.swift`：双轨录音与本地合成（支持混合与分离两种模式）。
+  - `AudioRecorder.swift`：双轨录音与本地合成（始终合成为 mixed.m4a）。
   - `Models/MeetingTask.swift`：任务模型与状态机。
   - `Services/`
     - `SettingsStore.swift`：配置、主题、功能开关、日志。
@@ -23,7 +23,7 @@
     - `TingwuService.swift`：创建听悟离线任务 + 查询任务信息。
     - `MeetingPipelineManager.swift`：流水线编排器（State Machine），负责调度具体的 PipelineNode。
     - `Pipeline/`
-      - `PipelineBoard.swift`：流水线执行上下文（黑板），管理状态传递与多路数据。
+      - `PipelineBoard.swift`：流水线执行上下文（黑板），管理状态传递与执行上下文。
       - `PipelineNodes.swift`：具体的流水线节点实现（Upload, Transcode, CreateTask, Polling）。
       - `TranscriptParser.swift`：听悟转写结果解析器。
     - `Storage/StorageProvider.swift`：存储抽象接口。
@@ -57,16 +57,11 @@ flowchart TD
   C --> E[remote.m4a]
   D --> F[local.m4a]
   
-  E --> G1{识别模式}
-  F --> G1
-  
-  G1 -->|混合模式| H1[AVMutableComposition 合成]
+  E --> H1[AVMutableComposition 合成]
+  F --> H1
   H1 --> H2[mixed.m4a]
   H2 --> I1[创建 MeetingTask]
   I1 --> J1[MeetingPipelineManager]
-  
-  G1 -->|分离模式| I2[创建 MeetingTask]
-  I2 --> J1
   
   J1 --> K1[Upload Raw]
   K1 --> K2[转码]

@@ -18,7 +18,7 @@
 
 应用使用单一流水线管理器：
 
-- **`MeetingPipelineManager`**：同时支持“混合模式”和“分离模式”。具体行为由 `MeetingTask.mode` 决定（例如：单文件 vs 双文件的上传/创建/轮询）。
+- **`MeetingPipelineManager`**：处理流水线任务。
 
 内部实现使用了**PipelineBoard（黑板模式）**来编排节点：
 
@@ -29,7 +29,7 @@
 
 这样 `PipelineView` 仍可以通过 `transcode()` / `upload()` / `createTask()` / `pollStatus()` 触发，但底层会映射为“从某个 step 开始跑完整链路”。
 
-## 流水线节点 (混合模式)
+## 流水线节点
 
 1. 上传原文件 (Raw) 到 OSS
 2. 转码
@@ -118,32 +118,6 @@
 - 运行中：
   - Node 会抛出可重试错误（`"Task running"`），由管理器以 2s 间隔重试。
   - 当前策略：最多 60 次（约 2 分钟）。
-
-## 分离模式（双人分轨）
-
-当 `MeetingTask.mode == separated` 时，管理器会并发跑两条单路流水线：
-
-- Speaker 1（本地麦克风）：`speaker1AudioPath` → `ossUrl` → `tingwuTaskId` → `speaker1Transcript`
-- Speaker 2（远端系统音频）：`speaker2AudioPath` → `speaker2OssUrl` → `speaker2TingwuTaskId` → `speaker2Transcript`
-
-两条链路复用同一组 Node，通过 `targetSpeaker` 参数区分。上传 objectKey 变为：
-
-- `"<ossPrefix><yyyy/MM/dd>/<recordingId>/speaker1.m4a"`
-- `"<ossPrefix><yyyy/MM/dd>/<recordingId>/speaker2.m4a"`
-
-### 对齐（当前实现）
-
-`MeetingPipelineManager.tryAlign()` 目前只做“拼接”合并：将两路 transcript 按 speaker 加标题后拼到 `task.transcript`，用于展示。`alignedConversation` 仍保留给后续按时间轴对齐实现。
-
-### 失败追踪与重试
-
-- 混合模式：使用 `task.failedStep` 与 `task.lastError`。
-- 分离模式：使用 speaker 维度字段：
-  - `task.speaker1Status` / `task.speaker2Status`
-  - `task.speaker1FailedStep` / `task.speaker2FailedStep`
-- UI 侧重试入口：
-  - `MeetingPipelineManager.retry()`：从失败 step 续跑
-  - `MeetingPipelineManager.retry(speaker:)`：仅重试某一路 speaker
 
 ## 听悟签名（ACS3-HMAC-SHA256）
 

@@ -4,7 +4,7 @@ import ScreenCaptureKit
 struct RecordingView: View {
     @ObservedObject var recorder: AudioRecorder
     @ObservedObject var settings: SettingsStore
-    var showModeSelection: Bool = true
+    var onViewResult: (() -> Void)?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -97,42 +97,6 @@ struct RecordingView: View {
                     
                     Divider()
                         .padding(.horizontal, 24)
-                    
-                    // Recognition Mode Section
-                    if showModeSelection {
-                        VStack(alignment: .leading, spacing: 16) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "waveform")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.blue)
-                                Text("Recognition Mode")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.primary)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 8) {
-                                Picker("Recognition Mode", selection: $recorder.recordingMode) {
-                                    Text("Mixed (Default)").tag(MeetingMode.mixed)
-                                    Text("Dual-Speaker Separated").tag(MeetingMode.separated)
-                                }
-                                .pickerStyle(.segmented)
-                                .labelsHidden()
-                                .frame(maxWidth: .infinity)
-                                
-                                Group {
-                                    if recorder.recordingMode == .separated {
-                                        Text("Separated mode treats System Audio as Speaker 2 (Remote) and Microphone as Speaker 1 (Local). They will be recognized independently.")
-                                    } else {
-                                        Text("Mixed mode combines all audio sources into a single track for recognition. Suitable for general recordings.")
-                                    }
-                                }
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                        .padding(24)
-                    }
                 }
                 .background(Color(nsColor: .textBackgroundColor)) // White in light mode
                 .cornerRadius(16)
@@ -199,7 +163,7 @@ struct RecordingView: View {
                             StatusBadge(status: task.status)
                         }
                         
-                        PipelineView(task: task, settings: settings)
+                        PipelineView(task: task, settings: settings, onViewResult: onViewResult)
                             .id(task.id)
                             .padding(16)
                             .background(Color(nsColor: .textBackgroundColor))
@@ -215,7 +179,6 @@ struct RecordingView: View {
             }
             .padding(.top, 24)
             .animation(.default, value: recorder.isRecording)
-            .animation(.default, value: recorder.recordingMode)
             .animation(.default, value: recorder.latestTask?.id)
         }
         }

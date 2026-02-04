@@ -2,13 +2,11 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ImportView: View {
-    @State private var selectedMode: MeetingMode = .mixed
     @State private var file1URL: URL?
-    @State private var file2URL: URL?
     @State private var isImporting = false
     @State private var errorMessage: String?
     
-    var onImport: (MeetingMode, [URL]) -> Void
+    var onImport: ([URL]) -> Void
     
     var body: some View {
         ScrollView {
@@ -16,19 +14,8 @@ struct ImportView: View {
                 // Configuration Card
                 GroupBox(label: Text("Configuration").bold()) {
                     VStack(spacing: 12) {
-                        FormRow(label: "Mode") {
-                            Picker("", selection: $selectedMode) {
-                                Text("Mixed Mode (Single File)").tag(MeetingMode.mixed)
-                                Text("Separated Mode (Dual Files)").tag(MeetingMode.separated)
-                            }
-                            .labelsHidden()
-                            .frame(maxWidth: 240)
-                        }
-                        
-                        Divider()
-                        
                         FormRow(label: "Description") {
-                            Text(modeDescription)
+                            Text("Import an existing audio file to start a new meeting task.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -40,12 +27,7 @@ struct ImportView: View {
                 // Files Card
                 GroupBox(label: Text("Files").bold()) {
                     VStack(spacing: 12) {
-                        if selectedMode == .mixed {
-                            FilePickerRow(title: "Audio File", url: $file1URL)
-                        } else {
-                            FilePickerRow(title: "Local (Speaker 1)", url: $file1URL)
-                            FilePickerRow(title: "Remote (Speaker 2)", url: $file2URL)
-                        }
+                        FilePickerRow(title: "Audio File", url: $file1URL)
                     }
                     .padding(8)
                 }
@@ -89,34 +71,20 @@ struct ImportView: View {
         }
     }
     
-    private var modeDescription: String {
-        switch selectedMode {
-        case .mixed:
-            return "Mixed mode uses a single audio file containing all speakers. Suitable for standard recordings."
-        case .separated:
-            return "Separated mode requires two files: one for the local speaker (Mic) and one for the remote speaker (System Audio)."
-        }
-    }
-    
     private var canImport: Bool {
-        if selectedMode == .mixed {
-            return file1URL != nil
-        } else {
-            return file1URL != nil && file2URL != nil
-        }
+        return file1URL != nil
     }
     
     private func doImport() {
         var files: [URL] = []
         if let f1 = file1URL { files.append(f1) }
-        if selectedMode == .separated, let f2 = file2URL { files.append(f2) }
         
         isImporting = true
         errorMessage = nil
         
         // Slight delay to allow UI update
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            onImport(selectedMode, files)
+            onImport(files)
             isImporting = false
         }
     }

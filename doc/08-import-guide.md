@@ -8,45 +8,21 @@ This document explains how to import existing audio files into the application a
 
 Click the **"Import Audio"** button at the top of the application sidebar to open the import sheet.
 
-## Import Modes
+## File Import
 
-The application supports two import modes to accommodate different audio sources:
+The application supports importing single audio files for processing.
 
-### 1. Meeting Mode
+### Workflow
 
-Suitable for single-file audio, such as:
-- Pre-mixed meeting recordings
-- Personal voice memos
-- Phone recordings
-
-**Workflow**:
-1. Select **"Meeting Mode"** in the import sheet.
+1. Select **"Import Audio"** in the sidebar.
 2. Click the file selection area (or drag and drop a file).
 3. Select **one** audio file.
 4. Click **"Import"**.
 
-**Processing Logic**:
+### Processing Logic
+
 - The system treats this file as `mixed.m4a`.
-- Creates a `Mixed` mode task.
 - Subsequent pipeline: Upload Raw -> Transcode -> Upload (Mixed) to OSS -> Create Tingwu task -> Poll and fetch results.
-
-### 2. Dictation Mode
-
-Suitable for dual-track separated audio, such as:
-- Files exported from professional dual-channel recording devices
-- Previous "Separated Mode" recordings from this app (`*-local.m4a` and `*-remote.m4a`)
-
-**Workflow**:
-1. Select **"Dictation Mode"** in the import sheet.
-2. Click the file selection areas for **"Speaker 1 (Local)"** and **"Speaker 2 (Remote)"** respectively.
-3. Select the corresponding audio file for each track.
-4. Ensure both files are selected.
-5. Click **"Import"**.
-
-**Processing Logic**:
-- The system treats the two files as local and remote tracks respectively.
-- Creates a `Separated` mode task.
-- Subsequent pipeline: Upload Raw each track -> Transcode each track -> Upload separately to OSS -> Create Tingwu task per track -> Poll per track -> Merge transcripts for display (simple concatenation).
 
 ## Supported Formats
 
@@ -59,4 +35,4 @@ After import, the task appears in the history list. You can manage it just like 
 
 1. **View Details**: Click the task to enter the details view.
 2. **Execute Pipeline**: Click "Upload Raw" -> "Transcode" -> "Upload (Mixed)" -> "Create Task" -> "Poll" to fetch results.
-3. **Playback**: You can play the imported audio (multi-track playback control is available in Separated Mode).
+3. **Playback**: You can play the imported audio.

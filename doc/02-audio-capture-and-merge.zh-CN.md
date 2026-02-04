@@ -7,15 +7,12 @@
 ## 关键文件
 
 - `Sources/VoiceMemo/AudioRecorder.swift`
-- `Sources/VoiceMemo/Models/MeetingTask.swift` (包含 `MeetingMode` 定义)
+- `Sources/VoiceMemo/Models/MeetingTask.swift`
 - `Sources/VoiceMemo/Info.plist`（权限说明文案）
 
 ## 录制模式
 
-应用支持两种模式：
-
-1. **混合模式 (Mixed)**：录音结束后将两路音频合成为一个 `mixed.m4a` 文件，供后续单路转写流水线使用。
-2. **分离模式 (Separated)**：跳过合成步骤，直接保留原始的两路音频文件，供后续双路独立转写与对齐流水线使用。
+应用默认使用 **混合模式 (Mixed)**：录音结束后将两路音频合成为一个 `mixed.m4a` 文件，供后续单路转写流水线使用。
 
 ## 双轨定义
 
@@ -58,13 +55,8 @@ sequenceDiagram
   AR->>SCK: stopCapture
   AR->>AVC: stopRunning
   
-  alt 混合模式 (Mixed)
-    AR->>AR: mergeAudioFiles(remote, local) -> mixed
-    AR->>AR: 创建 MeetingTask(localFilePath=mixed, mode=.mixed)
-  else 分离模式 (Separated)
-    AR->>AR: 跳过合成
-    AR->>AR: 创建 MeetingTask(remote, local, mode=.separated)
-  end
+  AR->>AR: mergeAudioFiles(remote, local) -> mixed
+  AR->>AR: 创建 MeetingTask(localFilePath=mixed)
 ```
 
 ## 合成策略

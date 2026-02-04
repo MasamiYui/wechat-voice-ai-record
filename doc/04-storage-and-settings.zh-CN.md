@@ -51,23 +51,6 @@
 | `action_items` | TEXT | 待办事项/行动点 |
 | `raw_response` | TEXT | 听悟接口返回的原始 JSON 响应 |
 
-#### 双人分离识别模式 (Separated Mode)
-
-| 字段名 | 类型 | 说明 |
-| :--- | :--- | :--- |
-| `mode` | TEXT | 识别模式 (`mixed` 或 `separated`) |
-| `speaker1_audio_path` | TEXT | 说话人1的本地音频路径 |
-| `speaker2_audio_path` | TEXT | 说话人2的本地音频路径 |
-| `speaker2_oss_url` | TEXT | 说话人2上传后的公网 URL |
-| `speaker2_tingwu_task_id` | TEXT | 说话人2的听悟任务 ID |
-| `speaker1_transcript` | TEXT | 说话人1的转写文本 |
-| `speaker2_transcript` | TEXT | 说话人2的转写文本 |
-| `aligned_conversation` | TEXT | 经过时间戳对齐后的对话流 (JSON) |
-| `speaker1_status` | TEXT | 说话人1的任务状态 |
-| `speaker2_status` | TEXT | 说话人2的任务状态 |
-| `speaker1_failed_step` | TEXT | 说话人1失败的流水线步骤（如有） |
-| `speaker2_failed_step` | TEXT | 说话人2失败的流水线步骤（如有） |
-
 #### 重试与错误处理
 
 | 字段名 | 类型 | 说明 |

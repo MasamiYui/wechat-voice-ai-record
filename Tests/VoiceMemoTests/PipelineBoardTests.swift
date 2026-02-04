@@ -7,7 +7,6 @@ final class PipelineBoardTests: XCTestCase {
         let board = PipelineBoard(
             recordingId: "test-recording-123",
             creationDate: Date(),
-            mode: .mixed,
             config: PipelineBoard.Config(
                 ossPrefix: "test-prefix",
                 tingwuAppKey: "test-app-key",
@@ -19,7 +18,6 @@ final class PipelineBoardTests: XCTestCase {
         )
         
         XCTAssertEqual(board.recordingId, "test-recording-123")
-        XCTAssertEqual(board.mode, .mixed)
         XCTAssertEqual(board.config.ossPrefix, "test-prefix")
         XCTAssertEqual(board.config.tingwuAppKey, "test-app-key")
         XCTAssertTrue(board.config.enableSummarization)
@@ -55,25 +53,20 @@ final class PipelineBoardTests: XCTestCase {
         XCTAssertEqual(board.channels[0]?.processedAudioPath, "/tmp/test_48k.m4a")
     }
     
-    func testMultipleChannels() {
+    func testUpdateChannelSupportsMultipleIds() {
         var board = createTestBoard()
         
         board.updateChannel(0) { channel in
-            channel.rawAudioPath = "/tmp/mixed.m4a"
+            channel.rawAudioPath = "/tmp/a.m4a"
         }
         
         board.updateChannel(1) { channel in
-            channel.rawAudioPath = "/tmp/speaker1.m4a"
+            channel.rawAudioPath = "/tmp/b.m4a"
         }
         
-        board.updateChannel(2) { channel in
-            channel.rawAudioPath = "/tmp/speaker2.m4a"
-        }
-        
-        XCTAssertEqual(board.channels.count, 3)
-        XCTAssertEqual(board.channels[0]?.rawAudioPath, "/tmp/mixed.m4a")
-        XCTAssertEqual(board.channels[1]?.rawAudioPath, "/tmp/speaker1.m4a")
-        XCTAssertEqual(board.channels[2]?.rawAudioPath, "/tmp/speaker2.m4a")
+        XCTAssertEqual(board.channels.count, 2)
+        XCTAssertEqual(board.channels[0]?.rawAudioPath, "/tmp/a.m4a")
+        XCTAssertEqual(board.channels[1]?.rawAudioPath, "/tmp/b.m4a")
     }
     
     func testChannelDataCompleteFlow() {
@@ -103,7 +96,6 @@ final class PipelineBoardTests: XCTestCase {
         let board = PipelineBoard(
             recordingId: "test",
             creationDate: date,
-            mode: .mixed,
             config: PipelineBoard.Config(
                 ossPrefix: "test",
                 tingwuAppKey: "test",
@@ -150,31 +142,10 @@ final class PipelineBoardTests: XCTestCase {
         XCTAssertEqual(channel?.transcript?.summary, "Test summary")
     }
     
-    func testSeparatedModeConfiguration() {
-        let board = PipelineBoard(
-            recordingId: "test",
-            creationDate: Date(),
-            mode: .separated,
-            config: PipelineBoard.Config(
-                ossPrefix: "test",
-                tingwuAppKey: "test",
-                enableSummarization: false,
-                enableMeetingAssistance: false,
-                enableSpeakerDiarization: true,
-                speakerCount: 2
-            )
-        )
-        
-        XCTAssertEqual(board.mode, .separated)
-        XCTAssertTrue(board.config.enableSpeakerDiarization)
-        XCTAssertEqual(board.config.speakerCount, 2)
-    }
-    
     private func createTestBoard() -> PipelineBoard {
         return PipelineBoard(
             recordingId: "test-recording",
             creationDate: Date(),
-            mode: .mixed,
             config: PipelineBoard.Config(
                 ossPrefix: "test-prefix",
                 tingwuAppKey: "test-app-key",

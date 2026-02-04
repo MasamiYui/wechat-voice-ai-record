@@ -28,36 +28,25 @@ enum SidebarItem: String, Hashable, CaseIterable, Identifiable {
 }
 
 enum RecordingModeItem: String, Hashable, CaseIterable, Identifiable {
-    case meetingMode
-    case separatedMode
+    case mixed
     
     var id: String { rawValue }
     
     var title: String {
         switch self {
-        case .meetingMode: return "Meeting Mode"
-        case .separatedMode: return "Separated Mode"
+        case .mixed: return "Mixed Mode"
         }
     }
     
     var description: String {
         switch self {
-        case .meetingMode: return "Single track recording. Best for general meetings."
-        case .separatedMode: return "Dual track recording. Separates system and mic audio."
+        case .mixed: return "Merges system and microphone audio automatically."
         }
     }
     
     var icon: String {
         switch self {
-        case .meetingMode: return "person.3.fill"
-        case .separatedMode: return "person.2.wave.2.fill"
-        }
-    }
-    
-    var mode: MeetingMode {
-        switch self {
-        case .meetingMode: return .mixed
-        case .separatedMode: return .separated
+        case .mixed: return "arrow.triangle.merge"
         }
     }
 }

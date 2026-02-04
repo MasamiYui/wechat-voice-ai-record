@@ -14,7 +14,7 @@ Provide a security-focused overview of VoiceMemo: what data is collected, where 
 ### Audio Data
 
 - Remote/system audio and local microphone audio are recorded and stored as files.
-- A merged file may be generated depending on the recording mode.
+- A merged file is generated after recording (`mixed.m4a`).
 - Default output locations and naming are described in the project README.
 
 ### Meeting Content (Derived)

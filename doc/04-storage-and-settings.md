@@ -51,23 +51,6 @@ Table `meeting_tasks` stores the full task state:
 | `action_items` | TEXT | Action Items |
 | `raw_response` | TEXT | Raw JSON Response from Tingwu API |
 
-#### Separated Mode (Two-Person Separation)
-
-| Field | Type | Note |
-| :--- | :--- | :--- |
-| `mode` | TEXT | Recording Mode (`mixed` or `separated`) |
-| `speaker1_audio_path` | TEXT | Local Audio Path for Speaker 1 |
-| `speaker2_audio_path` | TEXT | Local Audio Path for Speaker 2 |
-| `speaker2_oss_url` | TEXT | Public OSS URL for Speaker 2 |
-| `speaker2_tingwu_task_id` | TEXT | Tingwu Task ID for Speaker 2 |
-| `speaker1_transcript` | TEXT | Transcription for Speaker 1 |
-| `speaker2_transcript` | TEXT | Transcription for Speaker 2 |
-| `aligned_conversation` | TEXT | Aligned Conversation Stream (JSON) |
-| `speaker1_status` | TEXT | Task Status for Speaker 1 |
-| `speaker2_status` | TEXT | Task Status for Speaker 2 |
-| `speaker1_failed_step` | TEXT | Failed Step for Speaker 1 (if any) |
-| `speaker2_failed_step` | TEXT | Failed Step for Speaker 2 (if any) |
-
 #### Retry and Error Handling
 
 | Field | Type | Note |

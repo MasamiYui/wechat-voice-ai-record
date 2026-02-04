@@ -23,13 +23,6 @@ English version: [README.md](README.md)
 
 请参阅：[安全与审计说明](doc/09-security-and-audit.zh-CN.md)。
 
-## 识别模式
-
-应用现在支持两种识别模式，以适应不同的会议场景：
-
-- **混合模式 (默认)**：将所有音频源合并为单个音轨。适用于普通录音和简单的转写需求。
-- **双人分离模式**：专为 1-on-1 通话设计。系统音频被视为 Speaker 2（远端），麦克风被视为 Speaker 1（本地）。两个音轨将独立进行识别，在最终的纪要中提供更好的说话人识别和对话对齐。
-
 ## 环境要求
 
 - **操作系统**：macOS 13.0 (Ventura) 或更高版本。
@@ -41,9 +34,8 @@ English version: [README.md](README.md)
 ```mermaid
 flowchart LR
   subgraph Local["本地（macOS App）"]
-    A["AudioRecorder<br/>ScreenCaptureKit + AVFoundation"] -->|混合模式| B["音轨合并<br/>对方 + 自己"]
-    A -->|分离模式| C["MeetingTask"]
-    B --> C
+    A["AudioRecorder<br/>ScreenCaptureKit + AVFoundation"] --> B["音轨合并<br/>对方 + 自己"]
+    B --> C["MeetingTask"]
     C --> D["MeetingPipelineManager<br/>状态机流水线"]
     D -->|上传原文件| F1["OSSService<br/>Upload Original"]
     D -->|转码| E["AVAssetExportSession<br/>mixed_48k.m4a"]
@@ -130,7 +122,7 @@ open VoiceMemo.app
 
 使用左侧栏的 **Import Audio** 从已有音频文件创建任务，然后按上述相同步骤运行流水线。
 
-有关导入模式（会议模式 vs 听写模式）的详细说明，请参阅 [音频导入指南](doc/08-import-guide.zh-CN.md)。
+有关导入音频的详细说明，请参阅 [音频导入指南](doc/08-import-guide.zh-CN.md)。
 
 ## 开发与调试
 

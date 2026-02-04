@@ -10,7 +10,6 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
     @Published var availableApps: [SCRunningApplication] = []
     @Published var selectedApp: SCRunningApplication?
     @Published var latestTask: MeetingTask?
-    @Published var recordingMode: MeetingMode = .mixed
     
     var lastUploadedURL: URL? {
         if let urlStr = latestTask?.ossUrl {
@@ -18,6 +17,8 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
         }
         return nil
     }
+    
+    private var notificationObserver: NSObjectProtocol?
     
     private var settings: SettingsStore
     private var recordingId: String?
@@ -42,6 +43,22 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
     init(settings: SettingsStore) {
         self.settings = settings
         super.init()
+        
+        // Listen for task updates to refresh latestTask
+        notificationObserver = NotificationCenter.default.addObserver(
+            forName: .meetingTaskDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            if let taskId = notification.object as? UUID,
+               let currentTask = self.latestTask,
+               currentTask.id == taskId,
+               let updatedTask = notification.userInfo?[MeetingTask.userInfoTaskKey] as? MeetingTask {
+                self.latestTask = updatedTask
+            }
+        }
+        
         Task {
             await refreshAvailableApps()
         }
@@ -328,55 +345,33 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
                 }
             }
             
-            // 3. Merge or Separated
+            // 3. Merge
             if let rURL = remoteURL, let lURL = localURL, let recId = recordingId {
-                if self.recordingMode == .mixed {
-                    settings.log("Merge start: remote=\(rURL.path) local=\(lURL.path)")
-                    await MainActor.run { self.statusMessage = "Merging audio files..." }
-                    let mixedURL = rURL.deletingLastPathComponent().appendingPathComponent(rURL.lastPathComponent.replacingOccurrences(of: "remote", with: "mixed"))
-                    do {
-                        try await mergeAudioFiles(audio1: rURL, audio2: lURL, output: mixedURL)
-                        await MainActor.run {
-                            self.isRecording = false
-                            self.statusMessage = "Saved 3 files to Downloads/VoiceMemoRecordings"
-                            
-                            // Create Meeting Task
-                            let formatter = DateFormatter()
-                            formatter.dateFormat = "MM-dd HH:mm"
-                            let dateStr = formatter.string(from: self.recordingStartTime ?? Date())
-                            let title = "Rec \(dateStr)"
-                            let task = MeetingTask(recordingId: recId, localFilePath: mixedURL.path, title: title)
-                            Task { try? await StorageManager.shared.currentProvider.saveTask(task) }
-                            self.latestTask = task
-                        }
-                        settings.log("Merge success: mixed=\(mixedURL.path)")
-                    } catch {
-                        await MainActor.run {
-                            self.isRecording = false
-                            self.statusMessage = "Merge failed: \(error.localizedDescription)"
-                        }
-                        settings.log("Merge failed: \(error.localizedDescription)")
-                    }
-                } else {
-                    // Separated Mode
-                    settings.log("Separated mode: Skip merge. remote=\(rURL.path) local=\(lURL.path)")
+                settings.log("Merge start: remote=\(rURL.path) local=\(lURL.path)")
+                await MainActor.run { self.statusMessage = "Merging audio files..." }
+                let mixedURL = rURL.deletingLastPathComponent().appendingPathComponent(rURL.lastPathComponent.replacingOccurrences(of: "remote", with: "mixed"))
+                do {
+                    try await mergeAudioFiles(audio1: rURL, audio2: lURL, output: mixedURL)
                     await MainActor.run {
                         self.isRecording = false
-                        self.statusMessage = "Saved 2 files (Separated) to Downloads/VoiceMemoRecordings"
+                        self.statusMessage = "Saved 3 files to Downloads/VoiceMemoRecordings"
                         
+                        // Create Meeting Task
                         let formatter = DateFormatter()
                         formatter.dateFormat = "MM-dd HH:mm"
                         let dateStr = formatter.string(from: self.recordingStartTime ?? Date())
-                        let title = "Rec \(dateStr) (Sep)"
-                        // Use Mic (Local) as primary display file
-                        var task = MeetingTask(recordingId: recId, localFilePath: lURL.path, title: title)
-                        task.mode = .separated
-                        task.speaker1AudioPath = lURL.path // Mic (Local) -> Speaker 1
-                        task.speaker2AudioPath = rURL.path // System (Remote) -> Speaker 2
-                        
+                        let title = "Rec \(dateStr)"
+                        let task = MeetingTask(recordingId: recId, localFilePath: mixedURL.path, title: title)
                         Task { try? await StorageManager.shared.currentProvider.saveTask(task) }
                         self.latestTask = task
                     }
+                    settings.log("Merge success: mixed=\(mixedURL.path)")
+                } catch {
+                    await MainActor.run {
+                        self.isRecording = false
+                        self.statusMessage = "Merge failed: \(error.localizedDescription)"
+                    }
+                    settings.log("Merge failed: \(error.localizedDescription)")
                 }
             }
             

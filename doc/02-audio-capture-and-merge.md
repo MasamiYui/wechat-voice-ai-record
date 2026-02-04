@@ -7,15 +7,12 @@ Describe how the app records “remote/system audio” and “local microphone a
 ## Key Files
 
 - `Sources/VoiceMemo/AudioRecorder.swift`
-- `Sources/VoiceMemo/Models/MeetingTask.swift` (contains `MeetingMode` definition)
+- `Sources/VoiceMemo/Models/MeetingTask.swift`
 - `Sources/VoiceMemo/Info.plist` (usage descriptions)
 
 ## Recording Modes
 
-The app supports two modes:
-
-1. **Mixed Mode**: Merges both audio tracks into a single `mixed.m4a` file after recording ends, for single-channel pipeline processing.
-2. **Separated Mode**: Skips the merge step and keeps the original two audio files, for dual-channel independent processing and alignment pipeline.
+The app records in **Mixed Mode**: Merges both audio tracks into a single `mixed.m4a` file after recording ends, for single-channel pipeline processing.
 
 ## Track Definitions
 
@@ -58,13 +55,8 @@ sequenceDiagram
   AR->>SCK: stopCapture
   AR->>AVC: stopRunning
   
-  alt Mixed Mode
-    AR->>AR: mergeAudioFiles(remote, local) -> mixed
-    AR->>AR: create MeetingTask(localFilePath=mixed, mode=.mixed)
-  else Separated Mode
-    AR->>AR: skip merge
-    AR->>AR: create MeetingTask(remote, local, mode=.separated)
-  end
+  AR->>AR: mergeAudioFiles(remote, local) -> mixed
+  AR->>AR: create MeetingTask(localFilePath=mixed)
 ```
 
 ## Merge Strategy

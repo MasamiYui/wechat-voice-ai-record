@@ -10,7 +10,6 @@ struct ResultView: View {
     enum ResultTab: String, CaseIterable, Identifiable {
         case overview = "Overview"
         case transcript = "Transcript"
-        case conversation = "Conversation"
         case raw = "Raw Data"
         case pipeline = "Pipeline"
         
@@ -96,8 +95,6 @@ struct ResultView: View {
                     OverviewView(task: task)
                 case .transcript:
                     TranscriptView(text: derivedTranscript() ?? "No transcript available.")
-                case .conversation:
-                    ConversationView(task: task)
                 case .raw:
                     ScrollView {
                         Text(task.rawResponse ?? "No raw response.")
@@ -277,54 +274,6 @@ struct ResultView: View {
             return String(Int(num))
         }
         return "\(value)"
-    }
-}
-
-struct ConversationView: View {
-    let task: MeetingTask
-    
-    var body: some View {
-        HStack(spacing: 0) {
-            // Left: Speaker 1 (Local)
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Image(systemName: "mic.fill")
-                    Text("Speaker 1 (Local)")
-                        .font(.headline)
-                    if let s = task.speaker1Status {
-                        Text("(\(s.displayName))").font(.caption).foregroundColor(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
-                .background(Color.blue.opacity(0.1))
-                
-                TranscriptView(text: task.speaker1Transcript ?? "No transcript")
-            }
-            .frame(maxWidth: .infinity)
-            
-            Divider()
-            
-            // Right: Speaker 2 (Remote)
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Image(systemName: "waveform")
-                    Text("Speaker 2 (Remote)")
-                        .font(.headline)
-                    if let s = task.speaker2Status {
-                        Text("(\(s.displayName))").font(.caption).foregroundColor(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
-                .background(Color.green.opacity(0.1))
-                
-                TranscriptView(text: task.speaker2Transcript ?? "No transcript")
-            }
-            .frame(maxWidth: .infinity)
-        }
     }
 }
 
