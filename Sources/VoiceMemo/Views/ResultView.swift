@@ -103,7 +103,11 @@ struct ResultView: View {
                             .textSelection(.enabled)
                     }
                 case .pipeline:
-                    PipelineView(task: task, settings: settings)
+                    PipelineView(task: task, settings: settings) {
+                        withAnimation {
+                            selectedTab = .overview
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
