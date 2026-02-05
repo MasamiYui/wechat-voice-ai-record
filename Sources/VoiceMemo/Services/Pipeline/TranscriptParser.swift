@@ -18,8 +18,14 @@ struct TranscriptParser {
         if let sentences = transcriptionData["Sentences"] as? [[String: Any]] {
             return sentences.compactMap { extractLine(from: $0) }.joined(separator: "\n")
         }
+        if let utterances = transcriptionData["utterances"] as? [[String: Any]] {
+            return utterances.compactMap { extractLine(from: $0) }.joined(separator: "\n")
+        }
         if let transcript = transcriptionData["Transcript"] as? String {
             return transcript
+        }
+        if let text = transcriptionData["text"] as? String {
+            return text
         }
         return nil
     }
@@ -46,7 +52,8 @@ struct TranscriptParser {
     private static func extractSpeaker(from item: [String: Any]) -> String? {
         if let name = item["SpeakerName"] as? String, !name.isEmpty { return name }
         if let name = item["Speaker"] as? String, !name.isEmpty { return name }
-        if let id = item["SpeakerId"] ?? item["SpeakerID"] { return "Speaker \(id)" }
+        if let name = item["speaker"] as? String, !name.isEmpty { return name }
+        if let id = item["SpeakerId"] ?? item["SpeakerID"] ?? item["speaker_id"] { return "Speaker \(id)" }
         return nil
     }
 }

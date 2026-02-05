@@ -8,6 +8,13 @@ class SettingsStore: ObservableObject {
         case mysql
         var id: String { self.rawValue }
     }
+    
+    // ASR Provider Config
+    enum ASRProvider: String, CaseIterable, Identifiable {
+        case tingwu
+        case volcengine
+        var id: String { self.rawValue }
+    }
 
     enum AppTheme: String, CaseIterable, Identifiable {
         case system
@@ -18,6 +25,10 @@ class SettingsStore: ObservableObject {
     
     @Published var storageType: StorageType {
         didSet { UserDefaults.standard.set(storageType.rawValue, forKey: "storageType") }
+    }
+    
+    @Published var asrProvider: ASRProvider {
+        didSet { UserDefaults.standard.set(asrProvider.rawValue, forKey: "asrProvider") }
     }
 
     @Published var appTheme: AppTheme {
@@ -57,6 +68,15 @@ class SettingsStore: ObservableObject {
     @Published var tingwuAppKey: String {
         didSet { UserDefaults.standard.set(tingwuAppKey, forKey: "tingwuAppKey") }
     }
+    
+    // Volcengine Config
+    @Published var volcAppId: String {
+        didSet { UserDefaults.standard.set(volcAppId, forKey: "volcAppId") }
+    }
+    @Published var volcResourceId: String {
+        didSet { UserDefaults.standard.set(volcResourceId, forKey: "volcResourceId") }
+    }
+    
     @Published var language: String {
         didSet { UserDefaults.standard.set(language, forKey: "tingwuLanguage") }
     }
@@ -84,11 +104,13 @@ class SettingsStore: ObservableObject {
     // Secrets (In-memory placeholders, real values in Keychain)
     @Published var hasAccessKeyId: Bool = false
     @Published var hasAccessKeySecret: Bool = false
+    @Published var hasVolcAccessToken: Bool = false
     
     private let logQueue = DispatchQueue(label: "cn.mistbit.voicememo.log")
     
     init() {
         self.storageType = StorageType(rawValue: UserDefaults.standard.string(forKey: "storageType") ?? "local") ?? .local
+        self.asrProvider = ASRProvider(rawValue: UserDefaults.standard.string(forKey: "asrProvider") ?? "tingwu") ?? .tingwu
         self.appTheme = AppTheme(rawValue: UserDefaults.standard.string(forKey: "appTheme") ?? "system") ?? .system
         
         self.mysqlHost = UserDefaults.standard.string(forKey: "mysqlHost") ?? "localhost"
@@ -103,6 +125,10 @@ class SettingsStore: ObservableObject {
         self.ossEndpoint = UserDefaults.standard.string(forKey: "ossEndpoint") ?? "https://oss-cn-beijing.aliyuncs.com"
         
         self.tingwuAppKey = UserDefaults.standard.string(forKey: "tingwuAppKey") ?? ""
+        
+        self.volcAppId = UserDefaults.standard.string(forKey: "volcAppId") ?? ""
+        self.volcResourceId = UserDefaults.standard.string(forKey: "volcResourceId") ?? "volc.bigasr.auc"
+        
         self.language = UserDefaults.standard.string(forKey: "tingwuLanguage") ?? "cn"
         
         self.enableSummary = UserDefaults.standard.object(forKey: "enableSummary") as? Bool ?? true
@@ -114,13 +140,14 @@ class SettingsStore: ObservableObject {
         self.enableVerboseLogging = UserDefaults.standard.object(forKey: "enableVerboseLogging") as? Bool ?? false
         
         checkSecrets()
-        log("SettingsStore initialized (system). Storage type: \(storageType)")
+        log("SettingsStore initialized (system). Storage type: \(storageType), ASR Provider: \(asrProvider)")
     }
     
     func checkSecrets() {
         hasAccessKeyId = KeychainHelper.shared.readString(account: "aliyun_ak_id") != nil
         hasAccessKeySecret = KeychainHelper.shared.readString(account: "aliyun_ak_secret") != nil
         hasMySQLPassword = KeychainHelper.shared.readString(account: "mysql_password") != nil
+        hasVolcAccessToken = KeychainHelper.shared.readString(account: "volc_access_token") != nil
     }
     
     func saveMySQLPassword(_ value: String) {
@@ -150,9 +177,29 @@ class SettingsStore: ObservableObject {
         return KeychainHelper.shared.readString(account: "aliyun_ak_secret")
     }
     
-    func clearSecrets() {
+    func saveVolcAccessToken(_ value: String) {
+        KeychainHelper.shared.save(value, account: "volc_access_token")
+        checkSecrets()
+    }
+    
+    func getVolcAccessToken() -> String? {
+        return KeychainHelper.shared.readString(account: "volc_access_token")
+    }
+    
+    func clearAliyunSecrets() {
         KeychainHelper.shared.delete(account: "aliyun_ak_id")
         KeychainHelper.shared.delete(account: "aliyun_ak_secret")
+        checkSecrets()
+    }
+    
+    func clearVolcSecrets() {
+        KeychainHelper.shared.delete(account: "volc_access_token")
+        checkSecrets()
+    }
+    
+    func clearSecrets() {
+        clearAliyunSecrets()
+        clearVolcSecrets()
         checkSecrets()
     }
     

@@ -1,7 +1,7 @@
 import Foundation
 import CryptoKit
 
-class TingwuService {
+class TingwuService: TranscriptionService {
     private let settings: SettingsStore
     
     init(settings: SettingsStore) {

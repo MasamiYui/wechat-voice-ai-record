@@ -169,7 +169,7 @@ class CreateTaskNode: PipelineNode {
         
         // 3. Execution
         // TODO: Pass configuration parameters (summarization, diarization)
-        let taskId = try await services.tingwuService.createTask(fileUrl: url)
+        let taskId = try await services.transcriptionService.createTask(fileUrl: url)
         
         // 4. Write Output
         board.updateChannel(channelId) { $0.tingwuTaskId = taskId }
@@ -191,22 +191,24 @@ class PollingNode: PipelineNode {
         }
         
         // 2. Execution
-        let (status, data) = try await services.tingwuService.getTaskInfo(taskId: taskId)
+        let (status, data) = try await services.transcriptionService.getTaskInfo(taskId: taskId)
         
         // 3. Write Status
         board.updateChannel(channelId) { $0.tingwuTaskStatus = status }
         
         if status == "SUCCESS" || status == "COMPLETED" {
+            // Determine if this is Tingwu (has "Result" key with URLs) or Volcengine (direct "result" key)
             if let result = data?["Result"] as? [String: Any] {
+                // --- Tingwu Logic ---
                 // Parse all data types for complete storage
-                let transcriptText = await fetchTranscript(from: result, service: services.tingwuService)
-                let summaryText = await fetchSummary(from: result, service: services.tingwuService)
+                let transcriptText = await fetchTranscript(from: result, service: services.transcriptionService)
+                let summaryText = await fetchSummary(from: result, service: services.transcriptionService)
                 
                 // Fetch complete data for database storage
-                let overviewData = await fetchOverviewData(from: result, service: services.tingwuService)
-                let transcriptData = await fetchTranscriptData(from: result, service: services.tingwuService)
-                let conversationData = await fetchConversationData(from: result, service: services.tingwuService)
-                let rawData = await fetchRawData(from: data, service: services.tingwuService)
+                let overviewData = await fetchOverviewData(from: result, service: services.transcriptionService)
+                let transcriptData = await fetchTranscriptData(from: result, service: services.transcriptionService)
+                let conversationData = await fetchConversationData(from: result, service: services.transcriptionService)
+                let rawData = await fetchRawData(from: data, service: services.transcriptionService)
                 
                 // 4. Write Output
                 board.updateChannel(channelId) {
@@ -216,6 +218,22 @@ class PollingNode: PipelineNode {
                     $0.conversationData = conversationData
                     $0.rawData = rawData
                 }
+            } else if let result = data?["result"] as? [String: Any] {
+                 // --- Volcengine Logic ---
+                 // Direct parsing from the result object
+                 // result contains 'text' and 'utterances'
+                 let transcriptText = TranscriptParser.buildTranscriptText(from: result)
+                 
+                 let rawData = await fetchRawData(from: data, service: services.transcriptionService)
+                 let transcriptData = await fetchRawData(from: result, service: services.transcriptionService) // Save result as transcript data
+                 
+                 board.updateChannel(channelId) {
+                     $0.transcript = TingwuResult(text: transcriptText, summary: nil)
+                     $0.overviewData = nil // No summary yet
+                     $0.transcriptData = transcriptData
+                     $0.conversationData = nil
+                     $0.rawData = rawData
+                 }
             }
         } else if status == "FAILED" {
             let errorMsg = (data?["StatusText"] as? String) 
@@ -237,7 +255,7 @@ class PollingNode: PipelineNode {
     // --- Helper Methods (Simplified for Board) ---
     // Note: Ideally these should be in a separate Parser class
     
-    private func fetchSummary(from result: [String: Any], service: TingwuService) async -> String? {
+    private func fetchSummary(from result: [String: Any], service: TranscriptionService) async -> String? {
         if let summarizationUrl = result["Summarization"] as? String {
             if let data = try? await service.fetchJSON(url: summarizationUrl),
                let obj = data["Summarization"] as? [String: Any],
@@ -248,7 +266,7 @@ class PollingNode: PipelineNode {
         return nil
     }
     
-    private func fetchTranscript(from result: [String: Any], service: TingwuService) async -> String? {
+    private func fetchTranscript(from result: [String: Any], service: TranscriptionService) async -> String? {
         if let transcriptionUrl = result["Transcription"] as? String {
              if let data = try? await service.fetchJSON(url: transcriptionUrl) {
                  return TranscriptParser.buildTranscriptText(from: data)
@@ -260,7 +278,7 @@ class PollingNode: PipelineNode {
     // buildTranscriptText removed, using TranscriptParser instead
     
     // New helper methods for complete data storage
-    private func fetchOverviewData(from result: [String: Any], service: TingwuService) async -> String? {
+    private func fetchOverviewData(from result: [String: Any], service: TranscriptionService) async -> String? {
         var combinedData: [String: Any] = [:]
         
         // Try to fetch summarization data
@@ -287,7 +305,7 @@ class PollingNode: PipelineNode {
         return nil
     }
     
-    private func fetchTranscriptData(from result: [String: Any], service: TingwuService) async -> String? {
+    private func fetchTranscriptData(from result: [String: Any], service: TranscriptionService) async -> String? {
         // Try to fetch transcription data
         if let transcriptionUrl = result["Transcription"] as? String {
             if let data = try? await service.fetchJSON(url: transcriptionUrl) {
@@ -300,7 +318,7 @@ class PollingNode: PipelineNode {
         return nil
     }
     
-    private func fetchConversationData(from result: [String: Any], service: TingwuService) async -> String? {
+    private func fetchConversationData(from result: [String: Any], service: TranscriptionService) async -> String? {
         // Try to fetch conversation data if available
         if let conversationUrl = result["Conversation"] as? String {
             if let data = try? await service.fetchJSON(url: conversationUrl) {
@@ -313,7 +331,7 @@ class PollingNode: PipelineNode {
         return nil
     }
     
-    private func fetchRawData(from data: [String: Any]?, service: TingwuService) async -> String? {
+    private func fetchRawData(from data: [String: Any]?, service: TranscriptionService) async -> String? {
         // Store the complete raw response data
         if let data = data {
             if let jsonData = try? JSONSerialization.data(withJSONObject: data),

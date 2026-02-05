@@ -68,7 +68,11 @@ struct ChannelData {
 /// 统一的服务提供者 (用于注入无状态服务)
 struct ServiceProvider {
     let ossService: OSSService
-    let tingwuService: TingwuService
+    let transcriptionService: TranscriptionService
+    
+    // Legacy support for older code referencing tingwuService directly if needed
+    // but ideally we should migrate all usages to transcriptionService
+    var tingwuService: TranscriptionService { return transcriptionService }
 }
 
 /// 听悟结果结构
