@@ -1,6 +1,6 @@
 # VoiceMemo
 
-A professional, high-fidelity audio recording utility for macOS, specifically designed to capture real-time WeChat voice conversations using the native **ScreenCaptureKit** and **AVFoundation** frameworks.
+A professional, high-fidelity audio recording utility for macOS, designed to capture real-time voice conversations from any application using the native **ScreenCaptureKit** and **AVFoundation** frameworks.
 
 Read this in Chinese: [README_CN.md](README_CN.md)
 
@@ -8,7 +8,7 @@ Read this in Chinese: [README_CN.md](README_CN.md)
 
 - **Dual-Track Recording**: Simultaneously captures system audio (remote voice) and microphone input (local voice).
 - **Automatic Merging**: Intelligently mixes both tracks into a single high-quality audio file post-recording.
-- **Intelligent App Detection**: Automatically filters and prioritizes WeChat for seamless capture.
+- **Flexible App Selection**: Supports recording from any application, with intelligent filtering for seamless capture.
 - **Native Performance**: Built with SwiftUI and ScreenCaptureKit for optimal performance and low CPU overhead.
 - **Theme Mode**: System (Auto) / Light / Dark appearance selection in Settings.
 - **Privacy-First**: Operates locally on your machine with clear permission handling.

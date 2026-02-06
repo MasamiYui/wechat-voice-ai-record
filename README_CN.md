@@ -1,6 +1,6 @@
 # VoiceMemo
 
-一款专业、高保真的 macOS 音频录制工具，专为捕获微信实时语音通话设计。基于 macOS 原生的 **ScreenCaptureKit** 和 **AVFoundation** 框架构建。
+一款专业、高保真的 macOS 音频录制工具，用于捕获任何应用程序的实时语音通话。基于 macOS 原生的 **ScreenCaptureKit** 和 **AVFoundation** 框架构建。
 
 English version: [README.md](README.md)
 
@@ -8,7 +8,7 @@ English version: [README.md](README.md)
 
 - **双轨录制**：同时捕获系统音频（对方声音）和麦克风输入（自己的声音）。
 - **自动合成**：录音结束后，智能地将两个轨道合并为一个高质量的混音文件。
-- **智能应用检测**：自动过滤并优先识别微信应用，实现无缝捕获。
+- **灵活的应用选择**：支持从任何应用程序进行录制，具有智能过滤功能，实现无缝捕获。
 - **原生性能**：采用 SwiftUI 和 ScreenCaptureKit 开发，性能卓越，CPU 占用率极低。
 - **主题模式**：设置中支持 自动（跟随系统）/ 浅色 / 深色 三种外观模式。
 - **隐私优先**：所有处理均在本地完成，具有清晰的权限管理机制。
