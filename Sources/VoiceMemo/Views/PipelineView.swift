@@ -272,7 +272,7 @@ struct PipelineView: View {
             Text("Uploading...")
             
         case .uploaded:
-             Button("Create Tingwu Task") {
+             Button(settings.asrProvider == .volcengine ? "Create Volcengine Task" : "Create Tingwu Task") {
                  Task { await manager.createTask() }
              }
              .buttonStyle(.borderedProminent)
