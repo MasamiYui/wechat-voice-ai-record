@@ -17,13 +17,28 @@ struct RecordingView: View {
                 
                 // Status Text
                 HStack(spacing: 6) {
-                    Circle()
-                        .fill(recorder.isRecording ? Color.red : Color.gray)
-                        .frame(width: 8, height: 8)
-                    Text(recorder.statusMessage)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    if recorder.statusMessage.lowercased().contains("saved") {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text(recorder.statusMessage)
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                    } else {
+                        Circle()
+                            .fill(recorder.isRecording ? Color.red : Color.gray)
+                            .frame(width: 8, height: 8)
+                        Text(recorder.statusMessage)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                 }
+                .padding(.vertical, 4)
+                .padding(.horizontal, 8)
+                .background(
+                    recorder.statusMessage.lowercased().contains("saved") ?
+                    Capsule().fill(Color.green.opacity(0.1)) :
+                    Capsule().fill(Color.clear)
+                )
             }
             .padding(.horizontal, 24)
             .padding(.top, 20)
@@ -109,16 +124,16 @@ struct RecordingView: View {
                     Button(action: {
                         recorder.startRecording()
                     }) {
-                        HStack(spacing: 10) {
+                        HStack(spacing: 8) {
                             Image(systemName: "record.circle")
-                                .font(.title2)
-                            Text("Record")
                                 .font(.title3)
+                            Text("Record")
+                                .font(.headline)
                                 .fontWeight(.bold)
                         }
                         .foregroundColor(.white)
-                        .padding(.vertical, 14)
-                        .padding(.horizontal, 60)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 40)
                         .background(
                             Capsule()
                                 .fill(Color.red)
@@ -132,16 +147,16 @@ struct RecordingView: View {
                     Button(action: {
                         recorder.stopRecording()
                     }) {
-                        HStack(spacing: 10) {
+                        HStack(spacing: 8) {
                             Image(systemName: "stop.fill")
-                                .font(.title2)
-                            Text("Stop Recording")
                                 .font(.title3)
+                            Text("Stop Recording")
+                                .font(.headline)
                                 .fontWeight(.bold)
                         }
                         .foregroundColor(.white)
-                        .padding(.vertical, 14)
-                        .padding(.horizontal, 40)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 30)
                         .background(
                             Capsule()
                                 .fill(Color.primary)
