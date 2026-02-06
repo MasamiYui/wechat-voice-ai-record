@@ -297,7 +297,7 @@ struct SettingsView: View {
                         TextField("Required", text: $settings.volcAppId)
                             .textFieldStyle(.roundedBorder)
                     }
-                    FormRow(label: "Resource ID") {
+                    FormRow(label: "Cluster ID") {
                         TextField("e.g. volc.bigasr.auc", text: $settings.volcResourceId)
                             .textFieldStyle(.roundedBorder)
                     }

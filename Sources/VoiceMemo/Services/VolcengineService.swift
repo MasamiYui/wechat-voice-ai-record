@@ -2,7 +2,7 @@ import Foundation
 
 class VolcengineService: TranscriptionService {
     private let settings: SettingsStore
-    private let baseURL = "https://openspeech.bytedance.com/api/v3/auc/bigmodel"
+    private let baseURL = "https://openspeech.bytedance.com/api/v1/auc"
     
     init(settings: SettingsStore) {
         self.settings = settings
@@ -14,16 +14,19 @@ class VolcengineService: TranscriptionService {
         let url = try endpointURL(path: "/submit")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        try addAuthHeaders(to: &request)
+        guard let accessToken = settings.getVolcAccessToken(), !accessToken.isEmpty else {
+            throw TranscriptionError.invalidCredentials
+        }
         
-        // Build Request Body
-        // https://www.volcengine.com/docs/6561/1354868
-        let requestId = UUID().uuidString
-        request.setValue(requestId, forHTTPHeaderField: "X-Api-Request-Id")
-        request.setValue("-1", forHTTPHeaderField: "X-Api-Sequence")
-        
+        // Volcengine V1 API Body
         let body: [String: Any] = [
+            "app": [
+                "appid": settings.volcAppId,
+                "token": accessToken,
+                "cluster": settings.volcResourceId // Treating ResourceID as Cluster ID
+            ],
             "user": [
                 "uid": "user_id_placeholder"
             ],
@@ -31,13 +34,10 @@ class VolcengineService: TranscriptionService {
                 "url": fileUrl,
                 "format": inferAudioFormat(from: fileUrl)
             ],
-            "request": [
-                "model_name": "bigmodel",
-                "enable_itn": true,
-                "enable_punc": true,
-                "enable_speaker_info": settings.enableRoleSplit,
-                "enable_channel_split": false,
-                "show_utterances": true
+            "additions": [
+                "with_speaker_info": settings.enableRoleSplit ? "True" : "False",
+                "use_itn": "True",
+                "use_punc": "True"
             ]
         ]
         
@@ -53,7 +53,7 @@ class VolcengineService: TranscriptionService {
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
-        guard let httpResponse = response as? HTTPURLResponse else {
+        guard let _ = response as? HTTPURLResponse else {
             throw TranscriptionError.invalidResponse
         }
         
@@ -62,31 +62,52 @@ class VolcengineService: TranscriptionService {
             settings.log("Volcengine CreateTask Response: \(responseText)")
         }
         
-        if httpResponse.statusCode != 200 {
-            let errorMsg = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw TranscriptionError.taskCreationFailed(errorMsg)
+        // Parse Response
+        // { "resp": { "code": 1000, "message": "Success", "id": "..." } }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let resp = json["resp"] as? [String: Any] else {
+            throw TranscriptionError.taskCreationFailed("Invalid JSON response")
         }
         
-        // Header Response Check
-        if let apiCode = httpResponse.value(forHTTPHeaderField: "X-Api-Status-Code"), apiCode != "20000000" {
-             let apiMsg = httpResponse.value(forHTTPHeaderField: "X-Api-Message") ?? "Unknown API Error"
-             throw TranscriptionError.taskCreationFailed("API Error: \(apiMsg)")
+        // Code 1000 is success for submission
+        if let code = resp["code"] as? Int, code != 1000 {
+            // Some error handling for string codes if API returns strings
+            let msg = resp["message"] as? String ?? "Unknown error"
+            throw TranscriptionError.taskCreationFailed("Volcengine Error \(code): \(msg)")
         }
         
-        // Volcengine uses the Request-Id as the Task-Id for query
-        return requestId
+        // Also handle string codes just in case
+        if let codeStr = resp["code"] as? String, codeStr != "1000" {
+            let msg = resp["message"] as? String ?? "Unknown error"
+            throw TranscriptionError.taskCreationFailed("Volcengine Error \(codeStr): \(msg)")
+        }
+        
+        guard let taskId = resp["id"] as? String else {
+            throw TranscriptionError.taskCreationFailed("Task ID not found in response")
+        }
+        
+        return taskId
     }
     
     func getTaskInfo(taskId: String) async throws -> (status: String, result: [String: Any]?) {
         let url = try endpointURL(path: "/query")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        try addAuthHeaders(to: &request)
-        request.setValue(taskId, forHTTPHeaderField: "X-Api-Request-Id")
+        guard let accessToken = settings.getVolcAccessToken(), !accessToken.isEmpty else {
+            throw TranscriptionError.invalidCredentials
+        }
         
-        // Empty body for query
-        request.httpBody = "{}".data(using: .utf8)
+        // Query Body
+        let body: [String: Any] = [
+            "appid": settings.volcAppId,
+            "token": accessToken,
+            "cluster": settings.volcResourceId,
+            "id": taskId
+        ]
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
         if settings.enableVerboseLogging {
             settings.log("Volcengine GetTaskInfo URL: \(url.absoluteString) TaskID: \(taskId)")
@@ -94,8 +115,8 @@ class VolcengineService: TranscriptionService {
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw TranscriptionError.invalidResponse
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw TranscriptionError.taskQueryFailed("HTTP Error")
         }
         
         if settings.enableVerboseLogging {
@@ -103,42 +124,40 @@ class VolcengineService: TranscriptionService {
             settings.log("Volcengine GetTaskInfo Response: \(responseText)")
         }
         
-        if httpResponse.statusCode != 200 {
-             let errorMsg = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw TranscriptionError.taskQueryFailed(errorMsg)
+        // Parse Response
+        // { "resp": { "code": 1000, "text": "...", "id": "..." } }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let resp = json["resp"] as? [String: Any] else {
+            throw TranscriptionError.taskQueryFailed("Invalid JSON response")
         }
-        
-        // Check X-Api-Status-Code
-        // 20000000: Success (Completed)
-        // 20000001: Processing
-        // 20000002: Queued
-        // Others: Error
-        
-        let apiCode = httpResponse.value(forHTTPHeaderField: "X-Api-Status-Code") ?? "0"
         
         var normalizedStatus = "FAILED"
         var resultData: [String: Any]? = nil
         
-        switch apiCode {
-        case "20000000":
-            normalizedStatus = "SUCCESS" // Maps to existing Tingwu status for compatibility
-            // Parse result body
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                resultData = json
-            }
-        case "20000001", "20000002":
+        // Handle code as Int or String
+        var code = 0
+        if let c = resp["code"] as? Int {
+            code = c
+        } else if let cStr = resp["code"] as? String, let c = Int(cStr) {
+            code = c
+        }
+        
+        // Status mapping
+        if code == 1000 {
+            normalizedStatus = "SUCCESS"
+            resultData = resp
+        } else if code > 1000 && code < 2000 {
             normalizedStatus = "RUNNING"
-        default:
+        } else {
             normalizedStatus = "FAILED"
-            let apiMsg = httpResponse.value(forHTTPHeaderField: "X-Api-Message") ?? "Unknown Error"
-            resultData = ["Message": apiMsg, "Code": apiCode]
+            let msg = resp["message"] as? String ?? "Unknown"
+            resultData = ["Message": msg, "Code": "\(code)"]
         }
         
         return (normalizedStatus, resultData)
     }
     
     func fetchJSON(url: String) async throws -> [String: Any] {
-        // Standard JSON fetch
         guard let urlObj = URL(string: url) else {
             throw TranscriptionError.invalidURL(url)
         }
@@ -157,20 +176,6 @@ class VolcengineService: TranscriptionService {
     
     // MARK: - Helpers
     
-    private func addAuthHeaders(to request: inout URLRequest) throws {
-        guard !settings.volcAppId.isEmpty else {
-             throw TranscriptionError.invalidCredentials
-        }
-        guard let accessToken = settings.getVolcAccessToken(), !accessToken.isEmpty else {
-            throw TranscriptionError.invalidCredentials
-        }
-        
-        request.setValue(settings.volcAppId, forHTTPHeaderField: "X-Api-App-Key")
-        request.setValue(accessToken, forHTTPHeaderField: "X-Api-Access-Key")
-        request.setValue(settings.volcResourceId, forHTTPHeaderField: "X-Api-Resource-Id")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    }
-
     private func endpointURL(path: String) throws -> URL {
         if let url = URL(string: "\(baseURL)\(path)") {
             return url
@@ -183,10 +188,10 @@ class VolcengineService: TranscriptionService {
         let ext = url.pathExtension.lowercased()
         if ext.isEmpty { return "m4a" }
         switch ext {
-        case "wav", "mp3", "ogg", "raw", "m4a":
+        case "wav", "ogg", "mp3", "mp4":
             return ext
         default:
-            return ext
+            return "m4a" // Default fall back
         }
     }
 }
