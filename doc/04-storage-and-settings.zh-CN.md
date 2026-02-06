@@ -83,9 +83,11 @@
 `SettingsStore` 通过 UserDefaults 保存非密钥配置：
 
 - 存储：`storageType`（`local` 或 `mysql`）
+- ASR 提供商：`asrProvider`（`tingwu` 或 `volcengine`）
 - MySQL：host/port/user/database
 - OSS：region/bucket/prefix/endpoint
 - 听悟：appKey、language
+- 火山引擎：volcAppId、volcResourceId
 - 外观：`appTheme`（`system` / `light` / `dark`）
 - 功能开关：summary/key points/action items/role split
 - 日志：verbose 开关
@@ -98,9 +100,12 @@
 
 accounts：
 
-- `aliyun_ak_id`
-- `aliyun_ak_secret`
+- `tingwu_ak_id`
+- `tingwu_ak_secret`
+- `oss_ak_id`
+- `oss_ak_secret`
 - `mysql_password`
+- `volc_access_token`
 
 `SettingsStore` 不会在 UI 层暴露明文密钥，只提供：
 

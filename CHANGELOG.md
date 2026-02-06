@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Multi-Provider ASR Architecture**: Refactored ASR pipeline to support pluggable providers via `TranscriptionService` protocol.
+- **Volcengine Integration**: Added support for ByteDance Volcengine ASR service as an alternative to Alibaba Cloud Tingwu.
+  - V3 API implementation with header-based authentication (`X-Api-App-Key`, `X-Api-Access-Key`, `X-Api-Resource-Id`).
+  - Support for `utterances` and `text` result formats.
+  - Settings UI for configuring Volcengine App ID, Resource ID, and Access Token.
 - **Theme Mode**: Support for System (Auto) / Light / Dark appearance in Settings.
 - **Security and Audit Documentation**: Added comprehensive security and audit notes (doc/09-security-and-audit.md).
 

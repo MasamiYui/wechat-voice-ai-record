@@ -174,121 +174,20 @@ struct ResultView: View {
             }
         }
         
+        // Fallback to parsing rawResponse using TranscriptParser
         guard let raw = task.rawResponse,
               let data = raw.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let result = json["Result"] as? [String: Any] else {
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
         }
         
-        if let transcription = result["Transcription"] as? [String: Any] {
-            return extractTranscript(from: transcription)
-        }
-        if let paragraphs = result["Paragraphs"] as? [[String: Any]] {
-            return extractTranscript(from: ["Paragraphs": paragraphs])
-        }
-        if let sentences = result["Sentences"] as? [[String: Any]] {
-            return extractTranscript(from: ["Sentences": sentences])
-        }
-        if let transcript = result["Transcript"] as? String {
-            return transcript
-        }
-        return nil
+        return TranscriptParser.buildTranscriptText(from: json)
     }
     
-    private func extractTranscript(from transcriptionData: [String: Any]) -> String? {
-        if let paragraphs = transcriptionData["Paragraphs"] as? [[String: Any]] {
-            let lines = paragraphs.compactMap { paragraph -> String? in
-                let speaker = extractSpeaker(from: paragraph)
-                let text = extractText(from: paragraph)
-                guard !text.isEmpty else { return nil }
-                if let speaker {
-                    return "\(speaker): \(text)"
-                }
-                return text
-            }
-            return lines.joined(separator: "\n")
-        }
-        
-        if let sentences = transcriptionData["Sentences"] as? [[String: Any]] {
-            let lines = sentences.compactMap { sentence -> String? in
-                let speaker = extractSpeaker(from: sentence)
-                let text = extractText(from: sentence)
-                guard !text.isEmpty else { return nil }
-                if let speaker {
-                    return "\(speaker): \(text)"
-                }
-                return text
-            }
-            return lines.joined(separator: "\n")
-        }
-        
-        if let transcript = transcriptionData["Transcript"] as? String {
-            return transcript
-        }
-        
-        return nil
-    }
-    
-    private func extractText(from item: [String: Any]) -> String {
-        if let text = item["Text"] as? String, !text.isEmpty {
-            return text
-        }
-        if let text = item["text"] as? String, !text.isEmpty {
-            return text
-        }
-        if let words = item["Words"] as? [[String: Any]] {
-            let wordTexts = words.compactMap { word -> String? in
-                if let text = word["Text"] as? String, !text.isEmpty {
-                    return text
-                }
-                if let text = word["text"] as? String, !text.isEmpty {
-                    return text
-                }
-                return nil
-            }
-            return wordTexts.joined()
-        }
-        if let words = item["Words"] as? [String] {
-            return words.joined()
-        }
-        return ""
-    }
-    
-    private func extractSpeaker(from item: [String: Any]) -> String? {
-        if let name = item["SpeakerName"] as? String, !name.isEmpty {
-            return name
-        }
-        if let name = item["Speaker"] as? String, !name.isEmpty {
-            return name
-        }
-        if let name = item["Role"] as? String, !name.isEmpty {
-            return name
-        }
-        if let id = item["SpeakerId"] {
-            return "Speaker \(stringify(id))"
-        }
-        if let id = item["SpeakerID"] {
-            return "Speaker \(stringify(id))"
-        }
-        if let id = item["RoleId"] {
-            return "Speaker \(stringify(id))"
-        }
-        return nil
-    }
-    
-    private func stringify(_ value: Any) -> String {
-        if let str = value as? String {
-            return str
-        }
-        if let num = value as? Int {
-            return String(num)
-        }
-        if let num = value as? Double {
-            return String(Int(num))
-        }
-        return "\(value)"
-    }
+    // extractTranscript, extractText, extractSpeaker and stringify helper methods are no longer needed
+    // as all parsing logic is now centralized in TranscriptParser
+    // and derivedTranscript() delegates entirely to TranscriptParser.
+
 }
 
 struct TaskInfoView: View {
@@ -395,14 +294,23 @@ struct OverviewView: View {
 struct TranscriptView: View {
     let text: String
     
+    // Split text into paragraphs for lazy loading performance
+    private var paragraphs: [String] {
+        text.components(separatedBy: "\n")
+    }
+    
     var body: some View {
         ScrollView {
-            Text(text)
-                .font(.body)
-                .lineSpacing(6)
-                .padding(24)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
+            LazyVStack(alignment: .leading, spacing: 12) {
+                ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                    Text(paragraph)
+                        .font(.body)
+                        .lineSpacing(6)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(24)
         }
     }
 }

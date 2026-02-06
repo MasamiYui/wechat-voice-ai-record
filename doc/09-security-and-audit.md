@@ -39,6 +39,7 @@ Accounts:
 
 - `aliyun_ak_id`
 - `aliyun_ak_secret`
+- `volc_access_token`
 - `mysql_password`
 
 ## Permissions and Entitlements
@@ -55,14 +56,16 @@ Audit focus:
 
 The app may initiate outbound connections for:
 
-- OSS upload (audio file hosting for Tingwu ingestion).
-- Tingwu API requests (create/poll transcription tasks).
+- OSS upload (audio file hosting for ASR ingestion).
+- Tingwu API requests (create/poll transcription tasks) when using Alibaba Cloud provider.
+- Volcengine API requests (create/poll transcription tasks) when using ByteDance provider.
 - MySQL (optional remote storage when enabled).
 
 Audit focus:
 
 - Ensure endpoints are user-configurable where appropriate (e.g., OSS endpoint).
 - Verify no secrets are sent to logs or persisted as plain text.
+- Volcengine uses `openspeech.bytedance.com` domain for API requests.
 
 ## Logging and PII
 

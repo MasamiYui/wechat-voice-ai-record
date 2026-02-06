@@ -20,7 +20,9 @@ This document explains how the app is structured end-to-end: UI, recording, pipe
     - `SettingsStore.swift`: user configuration, theme, feature toggles, logging.
     - `KeychainHelper.swift`: secret storage (RAM AK/Secret) in Keychain.
     - `OSSService.swift`: upload audio to OSS.
-    - `TingwuService.swift`: create Tingwu offline task + poll task info.
+    - `TranscriptionService.swift`: protocol defining ASR provider interface.
+    - `TingwuService.swift`: Alibaba Cloud Tingwu implementation (create task + poll).
+    - `VolcengineService.swift`: ByteDance Volcengine implementation (create task + poll).
     - `MeetingPipelineManager.swift`: pipeline manager (orchestrates transcode/upload/create/poll and persistence).
     - `Pipeline/`
       - `PipelineBoard.swift`: in-memory execution board (blackboard) for node state.
@@ -45,7 +47,8 @@ This document explains how the app is structured end-to-end: UI, recording, pipe
 - Storage
   - Storage is abstracted by `StorageProvider` and selected by `StorageManager` (SQLite by default, MySQL optional).
 - Cloud integrations
-  - OSS for file hosting, Tingwu for transcription/summarization.
+  - OSS for file hosting.
+  - ASR providers: Tingwu (Alibaba Cloud) and Volcengine (ByteDance) for transcription/summarization.
 
 ## High-level Flow
 
@@ -67,10 +70,13 @@ flowchart TD
   J1 --> K1[Upload Raw]
   K1 --> K2[Transcode]
   K2 --> K3[Upload Mixed]
-  K3 --> K4[Create Tingwu Task]
-  K4 --> K5[Poll Results]
-  
-  K5 --> O[Persist transcript/summary/aligned results]
+  K3 --> K4{Select ASR Provider}
+  K4 -->|Tingwu| K5a[Create Tingwu Task]
+  K4 -->|Volcengine| K5b[Create Volcengine Task]
+  K5a --> K6[Poll Results]
+  K5b --> K6
+    
+  K6 --> O[Persist transcript/summary/aligned results]
   O --> P[ResultView export Markdown]
 ```
 
@@ -95,6 +101,7 @@ Declared in `Package.swift`:
 - `mysql-kit`: optional MySQL persistence.
 - `alibabacloud-oss-swift-sdk-v2`: OSS uploads.
 - `CryptoKit`: Tingwu request signing (ACS3-HMAC-SHA256).
+- No external SDK for Volcengine: uses native URLSession with header-based authentication.
 
 ## Security
 
@@ -102,7 +109,7 @@ Security considerations for data collection, storage, network egress, and secret
 
 Key security aspects:
 
-- Secrets (Alibaba Cloud AK/SK, MySQL password) are stored in Keychain, not UserDefaults.
+- Secrets (Alibaba Cloud AK/SK, Volcengine Access Token, MySQL password) are stored in Keychain, not UserDefaults.
 - Audio data and meeting content are persisted locally and optionally uploaded to OSS.
 - Screen Recording permission is required for system audio capture.
-- Network traffic includes OSS uploads and Tingwu API calls.
+- Network traffic includes OSS uploads and ASR API calls (Tingwu or Volcengine).

@@ -20,7 +20,9 @@
     - `SettingsStore.swift`：配置、主题、功能开关、日志。
     - `KeychainHelper.swift`：Keychain 密钥存储（RAM AK/Secret）。
     - `OSSService.swift`：上传音频到 OSS。
-    - `TingwuService.swift`：创建听悟离线任务 + 查询任务信息。
+    - `TranscriptionService.swift`：定义 ASR 提供商接口的协议。
+    - `TingwuService.swift`：阿里云听悟实现（创建任务 + 查询）。
+    - `VolcengineService.swift`：字节跳动火山引擎实现（创建任务 + 查询）。
     - `MeetingPipelineManager.swift`：流水线编排器（State Machine），负责调度具体的 PipelineNode。
     - `Pipeline/`
       - `PipelineBoard.swift`：流水线执行上下文（黑板），管理状态传递与执行上下文。
@@ -45,7 +47,8 @@
 - 存储
   - 存储通过 `StorageProvider` 抽象，并由 `StorageManager` 选择具体实现（默认 SQLite，可选 MySQL）。
 - 云端
-  - OSS 用于文件托管，听悟用于转写与总结。
+  - OSS 用于文件托管。
+  - ASR 提供商：听悟（阿里云）和火山引擎（字节跳动）用于转写与总结。
 
 ## 高层流程
 
@@ -66,10 +69,13 @@ flowchart TD
   J1 --> K1[Upload Raw]
   K1 --> K2[转码]
   K2 --> K3[Upload Mixed]
-  K3 --> K4[创建听悟任务]
-  K4 --> K5[轮询结果]
+  K3 --> K4{选择 ASR 提供商}
+  K4 -->|听悟| K5a[创建听悟任务]
+  K4 -->|火山引擎| K5b[创建火山引擎任务]
+  K5a --> K6[轮询结果]
+  K5b --> K6
   
-  K5 --> O[保存转写/总结/对齐结果]
+  K6 --> O[保存转写/总结/对齐结果]
   O --> P[ResultView 导出 Markdown]
 ```
 
@@ -94,6 +100,7 @@ flowchart TD
 - `mysql-kit`：可选的 MySQL 持久化。
 - `alibabacloud-oss-swift-sdk-v2`：OSS 上传。
 - `CryptoKit`：听悟请求签名（ACS3-HMAC-SHA256）。
+- 火山引擎无需外部 SDK：使用原生 URLSession 和基于 Header 的认证。
 
 ## 安全
 
@@ -101,7 +108,7 @@ flowchart TD
 
 关键安全方面：
 
-- 密钥（阿里云 AK/SK、MySQL 密码）存储在 Keychain 中，而非 UserDefaults。
+- 密钥（阿里云 AK/SK、火山引擎 Access Token、MySQL 密码）存储在 Keychain 中，而非 UserDefaults。
 - 音频数据和会议内容在本地持久化，并可选择上传到 OSS。
 - 系统音频采集需要屏幕录制权限。
-- 网络流量包括 OSS 上传和听悟 API 调用。
+- 网络流量包括 OSS 上传和 ASR API 调用（听悟或火山引擎）。

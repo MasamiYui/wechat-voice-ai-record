@@ -100,9 +100,9 @@ open VoiceMemo.app
 - 主题模式：自动（跟随系统）/ 浅色 / 深色
 - OSS 配置（必需，用于文件托管）：阿里云 AccessKeyId / AccessKeySecret、bucket、region、prefix
 
-**ASR 供应商（二选一）：**
-- **阿里云听悟**：AppKey
-- **火山引擎**：AppId、AccessToken、ResourceId（支持音频格式自动推断）
+- **ASR 供应商（二选一）：**
+- **阿里云听悟**：AppKey（需配合 AK/SK）
+- **火山引擎**：AppId、AccessToken、Cluster ID（V3 BigModel 接口，支持说话人自动分离）
 
 ### 4. 音频输出
 
@@ -151,7 +151,7 @@ xed VoiceMemo.xcodeproj
 - [x] 集成阿里云听悟离线转写 + 会议纪要生成
 - [x] 集成 OSS 上传
 - [x] 手动触发流水线 UI（转码/上传/创建/轮询）
-- [ ] 说话人识别 (基于云端方案)
+- [x] 说话人识别 (阿里云听悟 & 火山引擎)
 - [ ] 实时转写 UI 界面
 
 ## 联系方式

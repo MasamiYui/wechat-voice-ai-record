@@ -39,6 +39,7 @@ accounts：
 
 - `aliyun_ak_id`
 - `aliyun_ak_secret`
+- `volc_access_token`
 - `mysql_password`
 
 ## 权限与 Entitlements
@@ -55,14 +56,16 @@ accounts：
 
 应用可能发起的出站连接包括：
 
-- OSS 上传（提供音频文件 URL 供听悟使用）。
-- 听悟 API 请求（创建/轮询离线任务并拉取结果）。
+- OSS 上传（提供音频文件 URL 供 ASR 使用）。
+- 听悟 API 请求（创建/轮询离线任务并拉取结果）- 使用阿里云提供商时。
+- 火山引擎 API 请求（创建/轮询离线任务并拉取结果）- 使用字节跳动提供商时。
 - MySQL（当开启远程存储时）。
 
 审计关注点：
 
 - 必要的网络目标应尽量可配置（例如 OSS endpoint）。
 - 禁止把密钥以明文写入日志或持久化到非 Keychain 的位置。
+- 火山引擎使用 `openspeech.bytedance.com` 域名进行 API 请求。
 
 ## 日志与隐私信息
 

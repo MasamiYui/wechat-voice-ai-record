@@ -8,18 +8,24 @@ class KeychainHelper {
     private init() {}
     
     func save(_ data: Data, account: String) {
-        let query = [
+        // Query for deletion (no data)
+        let deleteQuery = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: account
+        ] as CFDictionary
+        
+        SecItemDelete(deleteQuery)
+        
+        // Query for adding (with data)
+        let addQuery = [
             kSecValueData: data,
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: account
         ] as CFDictionary
         
-        // Delete existing item first
-        SecItemDelete(query)
-        
-        // Add new item
-        let status = SecItemAdd(query, nil)
+        let status = SecItemAdd(addQuery, nil)
         if status != errSecSuccess {
             print("Keychain save error: \(status)")
         }

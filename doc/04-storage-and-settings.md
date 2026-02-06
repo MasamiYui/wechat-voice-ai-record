@@ -83,9 +83,11 @@ Connection details come from settings:
 `SettingsStore` persists non-secret configuration via UserDefaults:
 
 - Storage: `storageType` (`local` or `mysql`)
+- ASR Provider: `asrProvider` (`tingwu` or `volcengine`)
 - MySQL: host/port/user/database
 - OSS: region/bucket/prefix/endpoint
 - Tingwu: appKey, language
+- Volcengine: appId, resourceId
 - Appearance: `appTheme` (`system`, `light`, `dark`)
 - Feature toggles: summary/key points/action items/role split
 - Logging: verbose logging flag
@@ -100,11 +102,13 @@ Accounts used:
 
 - `aliyun_ak_id`
 - `aliyun_ak_secret`
+- `volcengine_access_token`
 - `mysql_password`
 
 `SettingsStore` never exposes secrets in clear text to the UI; it only provides:
 
 - `hasAccessKeyId` / `hasAccessKeySecret`
+- `hasVolcengineAccessToken`
 - methods to save/read/clear
 
 ## Logs
