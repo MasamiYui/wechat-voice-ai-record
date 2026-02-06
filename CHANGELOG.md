@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Theme Mode**: Support for System (Auto) / Light / Dark appearance in Settings.
 - **Security and Audit Documentation**: Added comprehensive security and audit notes (doc/09-security-and-audit.md).
 
+### Changed
+- **Task Info UI**: Redesigned the Task Info section in Result View with a grid layout, status indicators, and copy functionality for Task Key.
+- **ASR Provider Identification**: Added logic to automatically infer and display the ASR provider (Volcengine/Tingwu) for existing tasks based on raw data.
+
 ## [1.1.0] - 2026-01-26
 
 ### Added
