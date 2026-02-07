@@ -144,6 +144,30 @@ struct SettingsView: View {
     private var generalForm: some View {
         VStack(spacing: Layout.standardSpacing) {
             StyledGroupBox("Audio & Features", spacing: 16) {
+                FormRow(label: "Save Path") {
+                    HStack {
+                        Text(settings.getSavePath().path)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .foregroundColor(.secondary)
+                            .help(settings.getSavePath().path)
+                        
+                        Button("Change...") {
+                            let panel = NSOpenPanel()
+                            panel.canChooseFiles = false
+                            panel.canChooseDirectories = true
+                            panel.allowsMultipleSelection = false
+                            panel.prompt = "Select"
+                            
+                            if panel.runModal() == .OK, let url = panel.url {
+                                settings.setSavePath(url)
+                            }
+                        }
+                    }
+                }
+                
+                Divider()
+                
                 FormRow(label: "Language") {
                     Picker("", selection: $settings.language) {
                         Text("Chinese (cn)").tag("cn")
