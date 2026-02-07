@@ -108,7 +108,8 @@ Open Settings in the app and configure:
 
 Recorded audio files are saved to:
 
-- `~/Downloads/VoiceMemoRecordings/`
+- Default: `~/Downloads/VoiceMemoRecordings/`
+- **Configurable**: You can change the save path in **Settings > General**.
 
 Filenames:
 

@@ -101,6 +101,11 @@ class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(enableVerboseLogging, forKey: "enableVerboseLogging") }
     }
     
+    // Audio Recording Config
+    @Published var savePathBookmark: Data? {
+        didSet { UserDefaults.standard.set(savePathBookmark, forKey: "savePathBookmark") }
+    }
+    
     // Secrets (In-memory placeholders, real values in Keychain)
     @Published var hasTingwuAccessKeyId: Bool = false
     @Published var hasTingwuAccessKeySecret: Bool = false
@@ -140,6 +145,7 @@ class SettingsStore: ObservableObject {
         let spkCount = UserDefaults.standard.integer(forKey: "speakerCount")
         self.speakerCount = (spkCount == 0) ? 2 : spkCount
         self.enableVerboseLogging = UserDefaults.standard.object(forKey: "enableVerboseLogging") as? Bool ?? false
+        self.savePathBookmark = UserDefaults.standard.data(forKey: "savePathBookmark")
         
         migrateLegacySecrets()
         checkSecrets()
@@ -327,5 +333,36 @@ class SettingsStore: ObservableObject {
     func logFileURL() -> URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         return base.appendingPathComponent("VoiceMemo/Logs/app.log")
+    }
+    
+    // MARK: - Save Path Management
+    
+    func getSavePath() -> URL {
+        if let bookmark = savePathBookmark {
+            var isStale = false
+            if let url = try? URL(resolvingBookmarkData: bookmark, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale) {
+                if isStale {
+                    log("Warning: Save path bookmark is stale")
+                    // If stale, we might need to recreate it, but we need a valid URL first.
+                    // Usually we just use it and hope for the best or prompt user.
+                }
+                return url
+            }
+        }
+        
+        // Default: Downloads/VoiceMemoRecordings
+        let fileManager = FileManager.default
+        let downloads = fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first!
+        return downloads.appendingPathComponent("VoiceMemoRecordings")
+    }
+    
+    func setSavePath(_ url: URL) {
+        do {
+            let bookmark = try url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+            savePathBookmark = bookmark
+            log("Updated save path to: \(url.path)")
+        } catch {
+            log("Failed to create bookmark for \(url.path): \(error)")
+        }
     }
 }

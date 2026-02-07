@@ -23,6 +23,7 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
     private var settings: SettingsStore
     private var recordingId: String?
     private var recordingStartTime: Date?
+    private var currentSaveLocation: URL?
     
     // System Audio (Remote)
     private var stream: SCStream?
@@ -122,10 +123,12 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
         let uuid = UUID().uuidString.prefix(8)
         self.recordingId = "\(dateStr)-\(uuid)"
         
-        let fileManager = FileManager.default
-        let downloads = fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first!
-        let folder = downloads.appendingPathComponent("VoiceMemoRecordings")
-        try? fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
+        let folder = settings.getSavePath()
+        if folder.startAccessingSecurityScopedResource() {
+            self.currentSaveLocation = folder
+        }
+        
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         
         self.remoteURL = folder.appendingPathComponent("recording-\(dateStr)-remote.m4a")
         self.localURL = folder.appendingPathComponent("recording-\(dateStr)-local.m4a")
@@ -354,7 +357,7 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
                     try await mergeAudioFiles(audio1: rURL, audio2: lURL, output: mixedURL)
                     await MainActor.run {
                         self.isRecording = false
-                        self.statusMessage = "Saved 3 files to Downloads/VoiceMemoRecordings"
+                        self.statusMessage = "Saved to \(mixedURL.deletingLastPathComponent().lastPathComponent)"
                         
                         // Create Meeting Task
                         let formatter = DateFormatter()
@@ -376,6 +379,11 @@ class AudioRecorder: NSObject, ObservableObject, SCStreamOutput, SCStreamDelegat
             }
             
             // Cleanup
+            if let loc = self.currentSaveLocation {
+                loc.stopAccessingSecurityScopedResource()
+                self.currentSaveLocation = nil
+            }
+            
             remoteAssetWriter = nil
             remoteAssetWriterInput = nil
             micAssetWriter = nil
